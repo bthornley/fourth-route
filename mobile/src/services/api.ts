@@ -1,7 +1,6 @@
 // API client — talks to the FastAPI backend
-// Change API_BASE for your network IP when testing on a physical device
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL
+  ?? 'https://postgres-production-73a0f.up.railway.app';
 
 export interface Camera {
   id: number;

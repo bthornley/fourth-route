@@ -1,5 +1,6 @@
 {
-  "buildCommand": "npx expo export:web",
+  "buildCommand": null,
+  "installCommand": null,
   "outputDirectory": "web-build",
   "framework": null,
   "rewrites": [
