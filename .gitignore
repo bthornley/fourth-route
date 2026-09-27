@@ -1,0 +1,35 @@
+# OSM / Valhalla data files (large — do not commit)
+valhalla/custom_files/*.pbf
+valhalla/custom_files/*.tar
+valhalla/custom_files/*.sqlite
+valhalla/custom_files/valhalla_tiles/
+valhalla/custom_files/duplicateways.txt
+valhalla/custom_files/file_hashes.txt
+valhalla/custom_files/archived/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+
+# Node / Expo
+mobile/node_modules/
+mobile/web-build/
+mobile/.expo/
+mobile/.vercel/
+*.log
+
+# macOS
+.DS_Store
+
+# Docker volumes (local only)
+postgres_data/
+
+# IDE
+.vscode/
+.idea/

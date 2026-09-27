@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Fourth Route",
+    "slug": "fourth-route",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0d0d1e"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "webpack"
+    },
+    "platforms": ["ios", "android", "web"]
+  }
+}
