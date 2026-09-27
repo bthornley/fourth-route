@@ -1,0 +1,6 @@
+ca_build/
+custom_files/
+*.pbf
+*.tar
+*.tar.gz
+valhalla_tiles/
