@@ -64,16 +64,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://fourthroute.app",
-        "https://www.fourthroute.app",
-        "https://fourthroute.com",
-        "https://www.fourthroute.com",
-        "https://fourthroute.org",
-        "https://byeflock.app",
-        "http://localhost:19006",
-        "http://localhost:3000",
-    ],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
