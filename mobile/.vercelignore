@@ -1,0 +1,13 @@
+# Vercel ignores this instead of .gitignore when present.
+# We explicitly DO want web-build/ uploaded (it's the static output).
+node_modules/
+.expo/
+src/
+App.tsx
+app.json
+babel.config.js
+tsconfig.json
+scripts/
+assets/
+package.json
+package-lock.json

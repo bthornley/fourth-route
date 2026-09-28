@@ -31,6 +31,7 @@ export default function App() {
   }, []);
 
   return (
+    <>
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         {/* Map fills the screen */}
@@ -80,6 +81,7 @@ export default function App() {
     </SafeAreaView>
     <Analytics />
     <SpeedInsights />
+  </>
   );
 }
 

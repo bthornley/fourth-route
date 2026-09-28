@@ -7,7 +7,8 @@
     "web": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "build:web": "expo export:web && node scripts/inject-analytics.js"
+    "build:web": "expo export:web && node scripts/inject-analytics.js",
+    "deploy": "npm run build:web && vercel --prod --yes --cwd web-build"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",

@@ -18,3 +18,19 @@ if (!html.includes('/_vercel/insights')) {
 } else {
   console.log('ℹ️  Analytics already present, skipping');
 }
+
+// Copy vercel.json (with rewrites) into web-build so we can deploy from there directly
+const srcVercel = path.join(__dirname, '../vercel.json');
+const dstVercel = path.join(__dirname, '../web-build/vercel.json');
+const vConfig = JSON.parse(fs.readFileSync(srcVercel, 'utf8'));
+// When deploying from web-build/, no outputDirectory needed
+delete vConfig.outputDirectory;
+fs.writeFileSync(dstVercel, JSON.stringify(vConfig, null, 2));
+
+// Copy .vercel/project.json so CLI knows which project to deploy to
+const srcProj = path.join(__dirname, '../.vercel/project.json');
+const dstDir  = path.join(__dirname, '../web-build/.vercel');
+fs.mkdirSync(dstDir, { recursive: true });
+fs.copyFileSync(srcProj, path.join(dstDir, 'project.json'));
+
+console.log('✅ Copied vercel config to web-build/');
