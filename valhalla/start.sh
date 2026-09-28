@@ -31,4 +31,4 @@ export build_time_zones=False
 export server_threads=2
 
 echo "Starting Valhalla service..."
-exec /usr/local/bin/docker-entrypoint.sh
+exec /valhalla/scripts/run.sh serve
