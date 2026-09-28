@@ -7,6 +7,8 @@ import { SearchPanel } from './src/components/SearchPanel';
 import { RouteInfoSheet } from './src/components/RouteInfoSheet';
 import { useRoute } from './src/hooks/useRoute';
 import { reportCamera } from './src/services/api';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 export default function App() {
   const {
@@ -76,6 +78,8 @@ export default function App() {
         </View>
       </View>
     </SafeAreaView>
+    <Analytics />
+    <SpeedInsights />
   );
 }
 
