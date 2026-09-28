@@ -32,7 +32,8 @@ function useGeocoder(query: string): GeoResult[] {
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1`;
+        const CA_BBOX = '-124.5,32.5,-114.1,42.0'; // west,south,east,north
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1&viewbox=${CA_BBOX}&bounded=1`;
         const res = await fetch(url, { headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.app)' } });
         setResults(await res.json());
       } catch { setResults([]); }
