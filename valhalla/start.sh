@@ -32,4 +32,6 @@ export server_threads=2
 
 echo "Starting Valhalla service on port ${PORT:-8002}..."
 export port=${PORT:-8002}
+# Remove cached config so run.sh regenerates it with the correct port
+rm -f /custom_files/valhalla.json
 exec /valhalla/scripts/run.sh build_tiles
