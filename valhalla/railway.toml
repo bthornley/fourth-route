@@ -4,10 +4,6 @@ dockerfilePath = "valhalla/Dockerfile"
 
 [deploy]
 healthcheckPath = "/status"
-healthcheckTimeout = 120
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-
-[[deploy.environmentVariables]]
-name = "TILES_URL"
-value = ""  # Set to GitHub Releases URL after upload

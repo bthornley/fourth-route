@@ -30,5 +30,6 @@ export build_admins=False
 export build_time_zones=False
 export server_threads=2
 
-echo "Starting Valhalla service..."
+echo "Starting Valhalla service on port ${PORT:-8002}..."
+export port=${PORT:-8002}
 exec /valhalla/scripts/run.sh build_tiles
