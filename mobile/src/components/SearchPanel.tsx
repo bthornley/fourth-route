@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
+  View, Text, TextInput, TouchableOpacity,
+  ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
 
@@ -19,35 +16,129 @@ interface Props {
   loading: boolean;
 }
 
-// Named locations for quick testing
-const PRESETS: Record<string, [number, number]> = {
-  // SF
-  'Civic Center':   [37.7792, -122.4191],
-  'Mission':        [37.7599, -122.4148],
-  'Financial Dist': [37.7944, -122.3997],
-  'Sunset':         [37.7558, -122.4869],
-  'Nob Hill':       [37.7930, -122.4160],
-  'SoMa':           [37.7785, -122.3948],
-  'Castro':         [37.7609, -122.4350],
-  'Haight':         [37.7694, -122.4469],
-  // East Bay
-  'Oakland DT':     [37.8044, -122.2712],
-  'Piedmont':       [37.8244, -122.2298],
-  'Berkeley DT':    [37.8716, -122.2727],
-  'Fruitvale':      [37.7751, -122.2241],
-  'Temescal':       [37.8278, -122.2636],
-};
+interface GeoResult {
+  display_name: string;
+  name: string;
+  lat: string;
+  lon: string;
+  address?: Record<string, string>;
+}
 
+// ── Nominatim autocomplete hook ────────────────────────────────────────────
+function useGeocoder(query: string): GeoResult[] {
+  const [results, setResults] = useState<GeoResult[]>([]);
+  const timer = useRef<any>(null);
+
+  useEffect(() => {
+    if (query.length < 2) { setResults([]); return; }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&countrycodes=us&addressdetails=1`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.app)' },
+        });
+        const data: GeoResult[] = await res.json();
+        setResults(data);
+      } catch { setResults([]); }
+    }, 380);
+    return () => clearTimeout(timer.current);
+  }, [query]);
+
+  return results;
+}
+
+// ── Short label for a Nominatim result ────────────────────────────────────
+function shortLabel(r: GeoResult): string {
+  const a = r.address ?? {};
+  const parts = [
+    a.neighbourhood || a.suburb || a.quarter || a.district || a.town || a.village,
+    a.city || a.county,
+    a.state,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : r.display_name.split(',').slice(0, 2).join(',').trim();
+}
+
+// ── Single search field with dropdown ─────────────────────────────────────
+function LocationInput({
+  placeholder,
+  color,
+  value,
+  onChange,
+  onSelect,
+}: {
+  placeholder: string;
+  color: string;
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (r: GeoResult) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const results = useGeocoder(value);
+  const showDrop = focused && results.length > 0 && value.length >= 2;
+
+  return (
+    <View style={{ position: 'relative' as any, zIndex: 10 }}>
+      <View style={[styles.inputWrapper, focused && { borderColor: color }]}>
+        <Text style={[styles.inputDot, { color }]}>●</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor="#888"
+          value={value}
+          onChangeText={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 150)}
+        />
+        {value.length > 0 && (
+          <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.clearX}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {showDrop && (
+        <View style={styles.dropdown}>
+          {results.map((r, i) => (
+            <TouchableOpacity
+              key={i}
+              style={[styles.dropItem, i < results.length - 1 && styles.dropDivider]}
+              onPress={() => { onSelect(r); onChange(shortLabel(r)); setFocused(false); }}
+            >
+              <Text style={styles.dropMain} numberOfLines={1}>{shortLabel(r)}</Text>
+              <Text style={styles.dropSub} numberOfLines={1}>{r.display_name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Main panel ─────────────────────────────────────────────────────────────
 export function SearchPanel({ onRoute, onClear, loading }: Props) {
-  const [originKey, setOriginKey] = useState<string>('Temescal');
-  const [destKey, setDestKey]     = useState<string>('Fruitvale');
-  const [radiusM, setRadiusM]     = useState(120);
-  const [vehicle, setVehicle]     = useState<VehicleType>('gas_avg');
+  const [originQuery, setOriginQuery] = useState('');
+  const [destQuery,   setDestQuery]   = useState('');
+  const [origin, setOrigin] = useState<GeoResult | null>(null);
+  const [dest,   setDest]   = useState<GeoResult | null>(null);
+  const [radiusM,  setRadiusM]  = useState(120);
+  const [vehicle,  setVehicle]  = useState<VehicleType>('gas_avg');
+
+  const canRoute = !!(origin && dest);
 
   const handleGo = () => {
-    const [oLat, oLon] = PRESETS[originKey] ?? PRESETS['Civic Center'];
-    const [dLat, dLon] = PRESETS[destKey]   ?? PRESETS['Mission'];
-    onRoute(oLat, oLon, dLat, dLon, radiusM, vehicle);
+    if (!canRoute) return;
+    onRoute(
+      parseFloat(origin!.lat), parseFloat(origin!.lon),
+      parseFloat(dest!.lat),   parseFloat(dest!.lon),
+      radiusM, vehicle,
+    );
+  };
+
+  const handleClear = () => {
+    setOriginQuery(''); setDestQuery('');
+    setOrigin(null); setDest(null);
+    onClear();
   };
 
   return (
@@ -56,41 +147,31 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
       <Text style={styles.subtitle}>Navigate around ALPR surveillance</Text>
 
       {/* Origin */}
-      <View style={styles.row}>
-        <Text style={styles.label}>From</Text>
-        <View style={styles.pickerRow}>
-          {Object.keys(PRESETS).map(k => (
-            <TouchableOpacity
-              key={k}
-              style={[styles.chip, originKey === k && styles.chipActive]}
-              onPress={() => setOriginKey(k)}
-            >
-              <Text style={[styles.chipText, originKey === k && styles.chipTextActive]}>{k}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      <LocationInput
+        placeholder="From — search any address or place"
+        color="#4A90D9"
+        value={originQuery}
+        onChange={(v) => { setOriginQuery(v); if (!v) setOrigin(null); }}
+        onSelect={(r) => setOrigin(r)}
+      />
+
+      <View style={{ height: 6 }} />
 
       {/* Destination */}
-      <View style={styles.row}>
-        <Text style={styles.label}>To</Text>
-        <View style={styles.pickerRow}>
-          {Object.keys(PRESETS).map(k => (
-            <TouchableOpacity
-              key={k}
-              style={[styles.chip, destKey === k && styles.chipDest]}
-              onPress={() => setDestKey(k)}
-            >
-              <Text style={[styles.chipText, destKey === k && styles.chipTextActive]}>{k}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={{ zIndex: 9 }}>
+        <LocationInput
+          placeholder="To — search any address or place"
+          color="#27AE60"
+          value={destQuery}
+          onChange={(v) => { setDestQuery(v); if (!v) setDest(null); }}
+          onSelect={(r) => setDest(r)}
+        />
       </View>
 
-      {/* Vehicle type */}
+      {/* Vehicle */}
       <View style={styles.row}>
         <Text style={styles.label}>Vehicle</Text>
-        <View style={styles.pickerRow}>
+        <View style={styles.chipRow}>
           {(Object.entries(VEHICLE_PROFILES) as [VehicleType, typeof VEHICLE_PROFILES[VehicleType]][]).map(([key, p]) => (
             <TouchableOpacity
               key={key}
@@ -106,9 +187,9 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
       </View>
 
       {/* Exclusion radius */}
-      <View style={styles.sliderRow}>
+      <View style={styles.row}>
         <Text style={styles.label}>Exclusion radius</Text>
-        <View style={styles.radiusBtns}>
+        <View style={styles.chipRow}>
           {[20, 40, 80, 120].map(r => (
             <TouchableOpacity
               key={r}
@@ -123,13 +204,17 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
 
       {/* Buttons */}
       <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.goBtn} onPress={handleGo} disabled={loading}>
+        <TouchableOpacity
+          style={[styles.goBtn, !canRoute && styles.goBtnDisabled]}
+          onPress={handleGo}
+          disabled={loading || !canRoute}
+        >
           {loading
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.goBtnText}>Route →</Text>
           }
         </TouchableOpacity>
-        <TouchableOpacity style={styles.clearBtn} onPress={onClear}>
+        <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
           <Text style={styles.clearBtnText}>Clear</Text>
         </TouchableOpacity>
       </View>
@@ -139,44 +224,56 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a2e', borderRadius: 16,
-    padding: 14, margin: 10,
+    backgroundColor: '#1a1a2eee',
+    borderRadius: 16, padding: 12, margin: 10,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
+    backdropFilter: 'blur(8px)' as any,
   },
-  title: {
-    color: '#fff', fontSize: 16, fontWeight: '700',
-    marginBottom: 2, textAlign: 'center', letterSpacing: 0.5,
+  title:    { color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 2 },
+  subtitle: { color: '#666', fontSize: 11, textAlign: 'center', marginBottom: 10 },
+
+  inputWrapper: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#11112a', borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#333',
+    paddingHorizontal: 10, paddingVertical: 0,
+    marginBottom: 0,
   },
-  subtitle: {
-    color: '#666', fontSize: 11, textAlign: 'center',
-    marginBottom: 10, letterSpacing: 0.3,
+  inputDot:  { fontSize: 10, marginRight: 8 },
+  input:     { flex: 1, color: '#fff', fontSize: 13, paddingVertical: 9, outlineStyle: 'none' } as any,
+  clearX:    { color: '#555', fontSize: 13, paddingLeft: 6 },
+
+  dropdown: {
+    position: 'absolute' as any,
+    top: '100%', left: 0, right: 0,
+    backgroundColor: '#1e1e3a',
+    borderRadius: 10, borderWidth: 1, borderColor: '#333',
+    marginTop: 3, zIndex: 999,
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 10, elevation: 10,
   },
-  row: { marginBottom: 8 },
-  label: {
-    color: '#888', fontSize: 11, marginBottom: 4,
-    textTransform: 'uppercase', letterSpacing: 0.8,
-  },
-  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  chip: {
+  dropItem:    { paddingHorizontal: 12, paddingVertical: 9 },
+  dropDivider: { borderBottomWidth: 1, borderBottomColor: '#2a2a4a' },
+  dropMain:    { color: '#eee', fontSize: 13, fontWeight: '500' },
+  dropSub:     { color: '#666', fontSize: 10, marginTop: 2 },
+
+  row:     { marginTop: 10 },
+  label:   { color: '#666', fontSize: 10, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  chip:    {
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 8, backgroundColor: '#2a2a4a',
     borderWidth: 1, borderColor: '#444',
   },
-  chipActive:  { backgroundColor: '#4A90D9', borderColor: '#4A90D9' },
-  chipDest:    { backgroundColor: '#27AE60', borderColor: '#27AE60' },
-  chipRadius:  { backgroundColor: '#8E44AD', borderColor: '#8E44AD' },
   chipVehicle: { backgroundColor: '#E67E22', borderColor: '#E67E22' },
-  chipText:       { color: '#aaa', fontSize: 11 },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  sliderRow: { marginBottom: 10 },
-  radiusBtns: { flexDirection: 'row', gap: 6 },
-  btnRow: { flexDirection: 'row', gap: 8 },
-  goBtn: {
-    flex: 1, backgroundColor: '#4A90D9',
-    paddingVertical: 10, borderRadius: 10, alignItems: 'center',
-  },
-  goBtnText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
-  clearBtn: {
+  chipRadius:  { backgroundColor: '#8E44AD', borderColor: '#8E44AD' },
+  chipText:        { color: '#aaa', fontSize: 11 },
+  chipTextActive:  { color: '#fff', fontWeight: '600' },
+
+  btnRow:  { flexDirection: 'row', gap: 8, marginTop: 10 },
+  goBtn:   { flex: 1, backgroundColor: '#4A90D9', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  goBtnDisabled: { backgroundColor: '#2a3a5a' },
+  goBtnText:     { color: '#fff', fontWeight: '700', fontSize: 15 },
+  clearBtn:      {
     paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: 10, backgroundColor: '#2a2a4a',
     borderWidth: 1, borderColor: '#444', alignItems: 'center',
