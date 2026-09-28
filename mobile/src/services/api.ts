@@ -1,6 +1,6 @@
 // API client — talks to the FastAPI backend
 export const API_BASE = process.env.EXPO_PUBLIC_API_URL
-  ?? 'https://postgres-production-73a0f.up.railway.app';
+  ?? 'https://fourth-route-production.up.railway.app';
 
 export interface Camera {
   id: number;
