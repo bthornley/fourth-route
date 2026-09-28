@@ -1,6 +1,6 @@
 {
-  "buildCommand": null,
-  "installCommand": null,
+  "buildCommand": "npx expo export:web && node scripts/inject-analytics.js",
+  "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": "web-build",
   "framework": null,
   "rewrites": [
