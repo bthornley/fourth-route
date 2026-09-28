@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CompareResult } from '../services/api';
 import {
   VehicleType, VEHICLE_PROFILES,
@@ -50,6 +50,7 @@ const VERDICT_CONFIG = {
 
 export function RouteInfoSheet({ result, vehicle }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
+  const [expanded, setExpanded] = useState(false);
 
   const verdict = getVerdict(pr, oh);
   const cfg = VERDICT_CONFIG[verdict];
@@ -73,8 +74,36 @@ export function RouteInfoSheet({ result, vehicle }: Props) {
   const timeColor  = !oh ? '#888' : oh.extra_seconds <= 0 ? '#27AE60' : oh.extra_seconds < 120 ? '#F39C12' : '#E74C3C';
   const distColor  = !oh ? '#888' : oh.extra_miles <= 0   ? '#27AE60' : '#E74C3C';
 
+  // ── Collapsed summary bar ──
+  if (!expanded) {
+    return (
+      <TouchableOpacity style={styles.collapsedBar} onPress={() => setExpanded(true)} activeOpacity={0.8}>
+        <Text style={styles.collapsedVerdict}>{cfg.emoji}</Text>
+        <View style={styles.collapsedInfo}>
+          <Text style={styles.collapsedLabel} numberOfLines={1}>
+            <Text style={{ color: '#4A90D9' }}>🔒 {pr ? fmtTime(pr.duration_seconds) : '—'}</Text>
+            {'  ·  '}
+            <Text style={{ color: '#888' }}>🚗 {fmtTime(sr.duration_seconds)}</Text>
+          </Text>
+          <Text style={styles.collapsedSub} numberOfLines={1}>
+            <Text style={{ color: '#27AE60' }}>{pr ? pr.cameras_avoided : 0} avoided</Text>
+            {'  ·  '}
+            <Text style={{ color: '#E74C3C' }}>
+              {pr ? cameras_in_corridor - pr.cameras_avoided : cameras_in_corridor} unavoidable
+            </Text>
+          </Text>
+        </View>
+        <Text style={styles.collapsedChevron}>▲ Details</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={styles.container}>
+      {/* Collapse button */}
+      <TouchableOpacity style={styles.collapseBtn} onPress={() => setExpanded(false)}>
+        <Text style={styles.collapseBtnText}>▼ Hide details</Text>
+      </TouchableOpacity>
 
       {/* Verdict banner */}
       <View style={[styles.verdictBanner, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
@@ -200,6 +229,24 @@ const styles = StyleSheet.create({
     padding: 14, margin: 10,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
+
+  // Collapsed summary bar
+  collapsedBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1a1a2eee', borderRadius: 14,
+    margin: 10, padding: 10, gap: 8,
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6, elevation: 5,
+  },
+  collapsedVerdict: { fontSize: 20 },
+  collapsedInfo: { flex: 1 },
+  collapsedLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  collapsedSub: { color: '#aaa', fontSize: 11, marginTop: 2 },
+  collapsedChevron: { color: '#4A90D9', fontSize: 11, fontWeight: '600' },
+
+  // Collapse button inside full sheet
+  collapseBtn: { alignItems: 'center', marginBottom: 10 },
+  collapseBtnText: { color: '#555', fontSize: 11 },
+
   verdictBanner: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12, gap: 10,
