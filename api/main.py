@@ -415,10 +415,16 @@ def route_compare(req: RouteRequest, db=Depends(get_db)):
             use_highways=req.use_highways,
         )
         avoiding_summary = avoiding["route"].get("trip", {}).get("summary", {})
+        # Count cameras genuinely on the privacy route (unavoidable)
+        corridor_ids = [c["id"] for c in cameras]
+        cams_on_privacy = _cameras_on_route(
+            db, avoiding["route"], corridor_ids, req.exclusion_radius_m
+        )
         avoiding_result = {
             "distance_miles": avoiding_summary.get("length"),
             "duration_seconds": avoiding_summary.get("time"),
-            "cameras_avoided": len(cameras),
+            "cameras_avoided": len(cameras) - cams_on_privacy,
+            "cameras_unavoidable": cams_on_privacy,
             "route": avoiding["route"],
         }
     except Exception:
@@ -497,4 +503,66 @@ def _fetch_corridor_cameras(conn, origin, dest, buffer_deg: float) -> list[dict]
             (min_lon, min_lat, max_lon, max_lat),
         )
         return [dict(row) for row in cur.fetchall()]
+
+
+def _decode_valhalla_polyline(encoded: str) -> list[tuple[float, float]]:
+    """Decode a Valhalla 6-digit precision encoded polyline → [(lat, lon), ...]."""
+    result, index, lat, lon = [], 0, 0, 0
+    while index < len(encoded):
+        for is_lon in (False, True):
+            b, shift, delta = 0, 0, 0
+            while True:
+                b = ord(encoded[index]) - 63
+                index += 1
+                delta |= (b & 0x1F) << shift
+                shift += 5
+                if b < 0x20:
+                    break
+            delta = ~delta >> 1 if delta & 1 else delta >> 1
+            if is_lon:
+                lon += delta
+            else:
+                lat += delta
+        result.append((lat / 1e6, lon / 1e6))
+    return result
+
+
+def _cameras_on_route(conn, route: dict, corridor_camera_ids: list[int],
+                      exclusion_radius_m: float) -> int:
+    """Count corridor cameras within exclusion_radius_m of the route geometry."""
+    if not corridor_camera_ids:
+        return 0
+
+    # Collect all coordinates from all legs
+    all_coords: list[tuple[float, float]] = []
+    for leg in route.get("trip", {}).get("legs", []):
+        shape = leg.get("shape", "")
+        if shape:
+            all_coords.extend(_decode_valhalla_polyline(shape))
+
+    if not all_coords:
+        return 0
+
+    # Thin to max 500 points to keep the WKT manageable
+    step = max(1, len(all_coords) // 500)
+    coords = all_coords[::step]
+    if coords[-1] != all_coords[-1]:
+        coords.append(all_coords[-1])
+
+    wkt = "LINESTRING(" + ", ".join(f"{lon} {lat}" for lat, lon in coords) + ")"
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COUNT(*) AS cnt FROM cameras
+            WHERE id = ANY(%s)
+              AND ST_DWithin(
+                  geom,
+                  ST_GeomFromText(%s, 4326)::geography,
+                  %s
+              )
+            """,
+            (corridor_camera_ids, wkt, exclusion_radius_m),
+        )
+        return cur.fetchone()["cnt"]
 
