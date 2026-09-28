@@ -31,4 +31,4 @@ export build_time_zones=False
 export server_threads=2
 
 echo "Starting Valhalla service..."
-exec /valhalla/scripts/run.sh serve
+exec /valhalla/scripts/run.sh build_tiles
