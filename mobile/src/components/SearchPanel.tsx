@@ -148,7 +148,9 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>⚖️ Fourth Route</Text>
-      <Text style={styles.subtitle}>Navigate around ALPR surveillance</Text>
+      <Text style={styles.tagline}>Navigate California within your 4th Amendment rights</Text>
+      <Text style={styles.subtitle}>Find routes that avoid ALPR surveillance cameras</Text>
+      <View style={styles.divider} />
 
       <LocationInput
         placeholder="From — any address or place"
@@ -225,8 +227,10 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 12, margin: 10,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
-  title:    { color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 1 },
-  subtitle: { color: '#555', fontSize: 10, textAlign: 'center', marginBottom: 8 },
+  title:    { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4, letterSpacing: 0.3 },
+  tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 3, letterSpacing: 0.2 },
+  subtitle: { color: '#888', fontSize: 11, textAlign: 'center', marginBottom: 10 },
+  divider:  { height: 1, backgroundColor: '#2a2a4a', marginBottom: 10 },
 
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
