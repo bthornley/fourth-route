@@ -219,7 +219,7 @@ Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_cor
 - [x] Fuel / CO₂ savings calculator
 - [x] Nominatim geocoding with CA bounds
 - [x] Weekly automated camera sync (GitHub Actions)
-- [ ] In-app crowdsourced camera reporting
+- [x] In-app crowdsourced camera reporting
 - [ ] Native iOS + Android apps
 - [ ] Expansion beyond California
 
