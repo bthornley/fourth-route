@@ -10,12 +10,10 @@ RUN echo 'server { \n\
     listen 8080; \n\
     location / { \n\
         proxy_pass http://127.0.0.1:8002; \n\
-        proxy_http_version 1.1; \n\
+        proxy_http_version 1.0; \n\
+        proxy_set_header Host "localhost"; \n\
         proxy_set_header Connection ""; \n\
-        proxy_set_header Host "127.0.0.1:8002"; \n\
-        proxy_set_header X-Forwarded-For ""; \n\
         proxy_read_timeout 60s; \n\
-        proxy_connect_timeout 10s; \n\
     } \n\
 }' > /etc/nginx/sites-enabled/valhalla && \
     rm -f /etc/nginx/sites-enabled/default
