@@ -50,8 +50,13 @@ export build_admins=False
 export build_time_zones=False
 export server_threads=2
 
-echo "Starting Valhalla service on port ${PORT:-8002}..."
-export port=${PORT:-8002}
+# Run Valhalla internally on port 8003; nginx proxies 8002 → 8003
+echo "Starting nginx on port 8002 (proxy → Valhalla:8003)..."
+nginx
+
+echo "Starting Valhalla service on port 8003..."
+export port=8003
+export PORT=8003
 # Remove cached config so run.sh regenerates it with the correct port
 rm -f /custom_files/valhalla.json
 exec /valhalla/scripts/run.sh build_tiles

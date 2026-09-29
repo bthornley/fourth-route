@@ -1,0 +1,30 @@
+app = "fourth-route-valhalla"
+primary_region = "lax"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[mounts]]
+  source = "valhalla_data"
+  destination = "/custom_files"
+
+# nginx listens on 8002, proxies to Valhalla on 8003 internally.
+# Fly.io http_service forwards to nginx, which handles any HTTP version/header issues.
+[http_service]
+  internal_port = 8002
+  force_https = false
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "40m"
+    interval = "30s"
+    timeout = "10s"
+    method = "GET"
+    path = "/status"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096
