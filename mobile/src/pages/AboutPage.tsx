@@ -69,7 +69,7 @@ export function AboutPage({ navigate }: Props) {
             ['⚖️ Washington', 'Passed SB 6002 requiring a court-issued probable cause warrant for law enforcement to access ALPR data held by private vendors — the strongest ALPR privacy law in the country.'],
             ['🏛️ Oregon', 'State law gives residents the right to sue ALPR vendors directly and limits data retention to 30 days. Lawmakers are considering a full ban.'],
             ['🤠 Texas', '14+ cities and counties have canceled Flock Safety contracts and shut off 900+ cameras after the state blocked ALPR funding. Includes Plano, Kendall County, and others.'],
-            ['🌅 California', '17,405 cameras mapped statewide — the original dataset. Densest ALPR network in the US, with documented use for immigration enforcement and protest tracking.'],
+            ['🌅 California', '16,200 cameras mapped statewide — the original dataset and densest ALPR network in the US, with documented use for immigration enforcement and protest tracking.'],
           ].map(([icon, desc]) => (
             <View key={icon as string} style={styles.stateCard}>
               <Text style={styles.stateIcon}>{icon}</Text>
@@ -121,14 +121,14 @@ export function AboutPage({ navigate }: Props) {
             Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras you actually pass, not just cameras near your origin or destination.
           </Text>
           <Text style={styles.body}>
-            <Text style={styles.highlight}>17,405 cameras</Text> are mapped across California: Bay Area, Los Angeles/Orange County, San Diego, Sacramento, Central Valley, and Northern California. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
+            <Text style={styles.highlight}>38,368 cameras</Text> are mapped across California, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
           </Text>
         </View>
 
         {/* Who it's for */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Who it's for</Text>
-          <Text style={styles.sectionTitle}>Anyone who drives in California</Text>
+          <Text style={styles.sectionTitle}>Anyone who drives in CA, WA, OR, or TX</Text>
           {[
             ['🔒 Privacy-conscious drivers', 'Exercising the right to travel without mass surveillance logging every movement'],
             ['⚠️ Domestic violence survivors', 'Abusers with law enforcement contacts or data broker access can track movements through ALPR systems — avoidance routing is a safety tool'],
@@ -147,7 +147,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.sectionLabel}>Open source</Text>
           <Text style={styles.sectionTitle}>Every line of code is public</Text>
           <Text style={styles.body}>
-            Fourth Route is released under the MIT License. The full codebase — API, routing engine configuration, mobile app, camera ETL pipeline — is published at{' '}
+            Fourth Route is released under the <Text style={styles.highlight}>GNU Affero General Public License v3 (AGPL-3.0)</Text>. The full codebase — API, routing engine configuration, mobile app, camera ETL pipeline — is published at{' '}
             <Text style={styles.link} onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>
               github.com/bthornley/fourth-route
             </Text>.
@@ -194,7 +194,7 @@ export function AboutPage({ navigate }: Props) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Fourth Route is a free, open-source public interest project.</Text>
-          <Text style={styles.footerText}>MIT License · Camera data: OpenStreetMap (ODbL) + public records</Text>
+          <Text style={styles.footerText}>AGPL-3.0 License · Camera data: OpenStreetMap (ODbL) + public records</Text>
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => navigate('/privacy')}>
               <Text style={styles.footerLink}>Privacy Policy</Text>
@@ -262,6 +262,9 @@ const styles = StyleSheet.create({
   personCard: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14, backgroundColor: '#111127', borderRadius: 12, padding: 14, gap: 12 },
   personIcon: { fontSize: 22, marginTop: 1 },
   personDesc: { color: '#aaa', fontSize: 14, lineHeight: 20, flex: 1 },
+  stateCard:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, backgroundColor: '#111127', borderRadius: 12, padding: 14, gap: 12, borderLeftWidth: 3, borderLeftColor: '#E8C97A' },
+  stateIcon:  { color: '#E8C97A', fontSize: 14, fontWeight: '700', minWidth: 90 },
+  stateDesc:  { color: '#aaa', fontSize: 13, lineHeight: 20, flex: 1 },
 
   techRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#1e1e3a', paddingVertical: 10, gap: 12 },
   techName: { color: '#7dd3fc', fontSize: 13, fontWeight: '600', width: 160 },

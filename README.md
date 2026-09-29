@@ -227,7 +227,7 @@ Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_cor
 
 ## License
 
-MIT — fork it, self-host it, adapt it for your city.
+AGPL-3.0 — fork it, self-host it, adapt it for your city. Commercial use requires a separate license.
 
 Camera location data is from OpenStreetMap (ODbL) and public records (public domain).
 

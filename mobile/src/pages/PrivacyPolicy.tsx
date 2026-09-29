@@ -92,7 +92,7 @@ export function PrivacyPolicy({ navigate }: Props) {
 
         <Section title="Open source">
           <Body>
-            Fourth Route is fully open source under the MIT License. You can review every line of code — including exactly what data the API accepts and discards — at{' '}
+            Fourth Route is fully open source under the <Bold>GNU Affero General Public License v3 (AGPL-3.0)</Bold>. You can review every line of code — including exactly what data the API accepts and discards — at{' '}
             <Anchor url="https://github.com/bthornley/fourth-route">github.com/bthornley/fourth-route</Anchor>.
             The privacy claims in this policy are verifiable in the source code.
           </Body>

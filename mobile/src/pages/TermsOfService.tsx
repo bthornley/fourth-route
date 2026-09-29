@@ -39,8 +39,11 @@ export function TermsOfService({ navigate }: Props) {
 
         <Section title="Open source license">
           <Body>
-            The Fourth Route codebase is released under the <Bold>MIT License</Bold>. You are free to use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, subject to the MIT License terms. The full license is available at{' '}
+            The Fourth Route codebase is released under the <Bold>GNU Affero General Public License v3 (AGPL-3.0)</Bold>. You are free to use, copy, modify, and distribute the software for any purpose — including self-hosting — provided that any modified version you run as a network service is also made available under AGPL-3.0. The full license is available at{' '}
             <Anchor url="https://github.com/bthornley/fourth-route/blob/main/LICENSE">github.com/bthornley/fourth-route</Anchor>.
+          </Body>
+          <Body>
+            <Bold>Commercial use:</Bold> Use of this software in a commercial product or paid service requires a separate commercial license from the copyright holder. Contact bthornley@gmail.com for licensing inquiries.
           </Body>
           <Body>
             Camera location data derived from OpenStreetMap is licensed under the <Bold>Open Database License (ODbL)</Bold>. Data from public records is in the public domain.
