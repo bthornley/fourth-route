@@ -24,8 +24,6 @@ if [ ! -f "$TILES_TAR" ]; then
     echo "  Part 2: $TILES_URL_AB"
     echo "  Part 3: $TILES_URL_AC"
 
-    # Stream all 3 parts sequentially → gunzip → write tar.
-    # Peak disk = just the 16 GB tar. No intermediate gz or part files.
     {
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AA"
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AB"
@@ -43,20 +41,20 @@ else
   echo "Tiles already present ✓"
 fi
 
-# Hand off to the GIS-OPS image entrypoint with correct env
-export use_tiles_ignore_pbf=True
-export force_rebuild=False
-export build_admins=False
-export build_time_zones=False
-export server_threads=2
-
-# Run Valhalla internally on port 8003; nginx proxies 8002 → 8003
-echo "Starting nginx on port 8002 (proxy → Valhalla:8003)..."
+# Start nginx reverse proxy on port 8002 → Valhalla on 8003
+# nginx runs as root daemon; gis-ops run.sh requires valhalla user so we su
+echo "Starting nginx (port 8002 → Valhalla:8003)..."
 nginx
 
-echo "Starting Valhalla service on port 8003..."
-export port=8003
-export PORT=8003
-# Remove cached config so run.sh regenerates it with the correct port
-rm -f /custom_files/valhalla.json
-exec /valhalla/scripts/run.sh build_tiles
+echo "Starting Valhalla (port 8003, as valhalla user)..."
+exec su -s /bin/bash valhalla -c "
+  export use_tiles_ignore_pbf=True
+  export force_rebuild=False
+  export build_admins=False
+  export build_time_zones=False
+  export server_threads=2
+  export port=8003
+  export PORT=8003
+  rm -f /custom_files/valhalla.json
+  exec /valhalla/scripts/run.sh build_tiles
+"
