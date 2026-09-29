@@ -265,14 +265,40 @@ def run(bbox=None):
     log.info("Sync complete ✓")
 
 
+CA_REGIONS: dict[str, str] = {
+    "bay_area":      "37.2,-122.6,38.0,-121.8",
+    "la_oc":         "33.4,-119.0,34.4,-117.0",
+    "san_diego":     "32.5,-118.0,33.5,-116.0",
+    "sacramento":    "38.0,-122.5,39.5,-120.5",
+    "central_valley":"35.5,-122.0,38.0,-118.5",
+    "norcal":        "39.5,-124.5,42.0,-120.0",
+}
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Sync ALPR cameras from OSM Overpass")
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--bbox",
-        help="Bounding box as 'south,west,north,east' (e.g. '37.6,-122.5,37.9,-122.3' for SF Bay Area)",
-        default=None,
+        help="Bounding box as 'south,west,north,east'",
+    )
+    group.add_argument(
+        "--region",
+        choices=list(CA_REGIONS.keys()) + ["all"],
+        help="Named California region, or 'all' to sync every region",
     )
     args = parser.parse_args()
-    run(bbox=args.bbox)
+
+    if args.region == "all":
+        total_inserted = total_updated = total_deleted = 0
+        for name, bbox in CA_REGIONS.items():
+            log.info(f"=== Region: {name} ({bbox}) ===")
+            run(bbox=bbox)
+            log.info(f"Sleeping 10s before next region...")
+            time.sleep(10)
+        log.info("=== All California regions synced ===")
+    elif args.region:
+        run(bbox=CA_REGIONS[args.region])
+    else:
+        run(bbox=args.bbox)
