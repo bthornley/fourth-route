@@ -8,6 +8,7 @@ interface Props {
   standardLine: [number, number][];
   cameras: (Camera | CameraLocation)[];
   onMapLongPress?: (lat: number, lon: number) => void;
+  flyTo?: { lng: number; lat: number; zoom: number };
 }
 
 const DEFAULT_CENTER: [number, number] = [-122.4194, 37.7749];
@@ -16,9 +17,15 @@ const DEFAULT_ZOOM = 12;
 // Lighter map style — easier to read, cameras pop more
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
-export function MapView({ privacyLine, standardLine, cameras, onMapLongPress }: Props) {
+export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, flyTo }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+
+  // ── Fly to state when selected ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!flyTo || !map.current) return;
+    map.current.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: flyTo.zoom, duration: 1200 });
+  }, [flyTo]);
 
   // ── Init map once ──────────────────────────────────────────────────────────
   useEffect(() => {

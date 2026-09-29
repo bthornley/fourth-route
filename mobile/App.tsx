@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView,
 } from 'react-native';
 import { MapView } from './src/components/MapView.web';
-import { SearchPanel } from './src/components/SearchPanel';
+import { SearchPanel, StateKey, STATE_CONFIG } from './src/components/SearchPanel';
 import { RouteInfoSheet } from './src/components/RouteInfoSheet';
 import { useRoute } from './src/hooks/useRoute';
 import { CameraReportModal } from './src/components/CameraReportModal';
@@ -30,8 +30,32 @@ function useNavigator() {
   return { path, navigate };
 }
 
+function useSyncStatus(): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+  useEffect(() => {
+    const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://fourth-route-production.up.railway.app';
+    fetch(`${API_BASE}/sync/status`)
+      .then(r => r.json())
+      .then(data => {
+        const total: number = data.total_cameras ?? 0;
+        const syncs: { finished_at: string; error: string | null }[] = data.recent_syncs ?? [];
+        const lastGood = syncs.find((s: any) => !s.error);
+        if (!lastGood || !total) return;
+        const diffMs = Date.now() - new Date(lastGood.finished_at).getTime();
+        const diffDays = Math.floor(diffMs / 86_400_000);
+        const age = diffDays === 0 ? 'today'
+          : diffDays === 1 ? 'yesterday'
+          : `${diffDays}d ago`;
+        setLabel(`📡 ${total.toLocaleString()} cameras · synced ${age}`);
+      })
+      .catch(() => {});
+  }, []);
+  return label;
+}
+
 export default function App() {
   const { path, navigate } = useNavigator();
+  const syncStatus = useSyncStatus();
 
   const {
     loading, error, result, vehicle,
@@ -40,6 +64,11 @@ export default function App() {
   } = useRoute();
 
   const [reportModal, setReportModal] = useState<{ lat: number; lon: number } | null>(null);
+  const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; zoom: number } | undefined>(undefined);
+
+  const handleStateChange = useCallback((s: StateKey) => {
+    setFlyTo({ ...STATE_CONFIG[s].center });
+  }, []);
 
   const handleMapLongPress = useCallback((lat: number, lon: number) => {
     setReportModal({ lat, lon });
@@ -61,7 +90,13 @@ export default function App() {
             standardLine={standardLine}
             cameras={cameras}
             onMapLongPress={handleMapLongPress}
+            flyTo={flyTo}
           />
+          {syncStatus && (
+            <View style={styles.syncBadge} pointerEvents="none">
+              <Text style={styles.syncBadgeText}>{syncStatus}</Text>
+            </View>
+          )}
         </View>
 
         {/* Overlaid UI panels */}
@@ -72,6 +107,7 @@ export default function App() {
             onClear={clearRoute}
             loading={loading}
             onAbout={() => navigate('/about')}
+            onStateChange={handleStateChange}
           />
 
           {/* Error banner */}
@@ -143,4 +179,16 @@ const styles = StyleSheet.create({
   },
   hintText: { color: '#aaa', textAlign: 'center', fontSize: 13 },
   hintSub: { color: '#555', textAlign: 'center', fontSize: 11, marginTop: 4 },
+  syncBadge: {
+    position: 'absolute' as any,
+    bottom: 28,
+    left: 8,
+    backgroundColor: 'rgba(13,13,30,0.82)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+  },
+  syncBadgeText: { color: '#aaa', fontSize: 10, letterSpacing: 0.2 },
 });

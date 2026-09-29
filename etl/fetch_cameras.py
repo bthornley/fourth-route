@@ -265,13 +265,25 @@ def run(bbox=None):
     log.info("Sync complete ✓")
 
 
-CA_REGIONS: dict[str, str] = {
-    "bay_area":      "37.2,-122.6,38.0,-121.8",
-    "la_oc":         "33.4,-119.0,34.4,-117.0",
-    "san_diego":     "32.5,-118.0,33.5,-116.0",
-    "sacramento":    "38.0,-122.5,39.5,-120.5",
-    "central_valley":"35.5,-122.0,38.0,-118.5",
-    "norcal":        "39.5,-124.5,42.0,-120.0",
+REGIONS: dict[str, str] = {
+    # California
+    "ca_bay_area":       "37.2,-122.6,38.0,-121.8",
+    "ca_la_oc":          "33.4,-119.0,34.4,-117.0",
+    "ca_san_diego":      "32.5,-118.0,33.5,-116.0",
+    "ca_sacramento":     "38.0,-122.5,39.5,-120.5",
+    "ca_central_valley": "35.5,-122.0,38.0,-118.5",
+    "ca_norcal":         "39.5,-124.5,42.0,-120.0",
+    # Washington (SB 6002 — warrant required for ALPR data access)
+    "wa_seattle":        "47.3,-122.6,47.8,-121.9",
+    "wa_rest":           "45.5,-124.8,47.3,-116.9",
+    # Oregon (residents can sue ALPR vendors; 30-day retention limit)
+    "or_portland":       "45.2,-123.2,45.7,-122.3",
+    "or_rest":           "41.9,-124.6,45.2,-116.5",
+    # Texas (14+ cities ended Flock contracts; state blocked ALPR funding)
+    "tx_dfw":            "32.5,-97.8,33.3,-96.5",
+    "tx_houston":        "29.4,-95.9,30.2,-94.8",
+    "tx_austin_sa":      "29.0,-98.8,30.6,-97.0",
+    "tx_rest":           "25.8,-106.7,36.5,-93.5",
 }
 
 if __name__ == "__main__":
@@ -285,20 +297,19 @@ if __name__ == "__main__":
     )
     group.add_argument(
         "--region",
-        choices=list(CA_REGIONS.keys()) + ["all"],
-        help="Named California region, or 'all' to sync every region",
+        choices=list(REGIONS.keys()) + ["all"],
+        help="Named region, or 'all' to sync every region",
     )
     args = parser.parse_args()
 
     if args.region == "all":
-        total_inserted = total_updated = total_deleted = 0
-        for name, bbox in CA_REGIONS.items():
+        for name, bbox in REGIONS.items():
             log.info(f"=== Region: {name} ({bbox}) ===")
             run(bbox=bbox)
-            log.info(f"Sleeping 10s before next region...")
+            log.info("Sleeping 10s before next region...")
             time.sleep(10)
-        log.info("=== All California regions synced ===")
+        log.info("=== All regions synced (CA + WA + OR + TX) ===")
     elif args.region:
-        run(bbox=CA_REGIONS[args.region])
+        run(bbox=REGIONS[args.region])
     else:
         run(bbox=args.bbox)

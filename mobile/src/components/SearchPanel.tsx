@@ -4,32 +4,6 @@ import {
   ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
-import { API_BASE } from '../services/api';
-
-// ── Sync status ────────────────────────────────────────────────────────────
-function useSyncStatus(): string | null {
-  const [label, setLabel] = useState<string | null>(null);
-  useEffect(() => {
-    fetch(`${API_BASE}/sync/status`)
-      .then(r => r.json())
-      .then(data => {
-        const total: number = data.total_cameras ?? 0;
-        const syncs: { finished_at: string; error: string | null }[] = data.recent_syncs ?? [];
-        const lastGood = syncs.find(s => !s.error);
-        if (!lastGood || !total) return;
-        const diffMs = Date.now() - new Date(lastGood.finished_at).getTime();
-        const diffDays = Math.floor(diffMs / 86_400_000);
-        const age = diffDays === 0 ? 'today'
-          : diffDays === 1 ? 'yesterday'
-          : `${diffDays} days ago`;
-        const totalStr = total.toLocaleString();
-        setLabel(`📡 ${totalStr} cameras · synced ${age}`);
-      })
-      .catch(() => { /* silent — non-critical */ });
-  }, []);
-  return label;
-}
-
 
 interface Props {
   onRoute: (
@@ -41,7 +15,23 @@ interface Props {
   onClear: () => void;
   loading: boolean;
   onAbout: () => void;
+  onStateChange: (state: StateKey) => void;
 }
+
+export type StateKey = 'all' | 'ca' | 'wa' | 'or' | 'tx';
+
+export const STATE_CONFIG: Record<StateKey, {
+  label: string;
+  bbox: string;           // west,south,east,north for Nominatim
+  center: { lng: number; lat: number; zoom: number };
+  flag: string;
+}> = {
+  all: { label: 'All',  flag: '🌎', bbox: '-124.8,25.8,-93.5,49.0',   center: { lng: -110.0, lat: 39.0, zoom: 5 } },
+  ca:  { label: 'CA',   flag: '🌅', bbox: '-124.5,32.5,-114.1,42.0',   center: { lng: -119.4, lat: 36.7, zoom: 6 } },
+  wa:  { label: 'WA',   flag: '⚖️', bbox: '-124.8,45.5,-116.9,49.0',   center: { lng: -120.5, lat: 47.5, zoom: 7 } },
+  or:  { label: 'OR',   flag: '🏛️', bbox: '-124.6,41.9,-116.5,46.3',   center: { lng: -120.6, lat: 43.8, zoom: 7 } },
+  tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
+};
 
 interface GeoResult {
   display_name: string;
@@ -51,7 +41,7 @@ interface GeoResult {
 }
 
 // ── Nominatim autocomplete ─────────────────────────────────────────────────
-function useGeocoder(query: string): GeoResult[] {
+function useGeocoder(query: string, bbox: string): GeoResult[] {
   const [results, setResults] = useState<GeoResult[]>([]);
   const timer = useRef<any>(null);
   useEffect(() => {
@@ -59,14 +49,13 @@ function useGeocoder(query: string): GeoResult[] {
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       try {
-        const CA_BBOX = '-124.5,32.5,-114.1,42.0'; // west,south,east,north
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1&viewbox=${CA_BBOX}&bounded=1`;
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1&viewbox=${bbox}`;
         const res = await fetch(url, { headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.app)' } });
         setResults(await res.json());
       } catch { setResults([]); }
     }, 380);
     return () => clearTimeout(timer.current);
-  }, [query]);
+  }, [query, bbox]);
   return results;
 }
 
@@ -82,13 +71,14 @@ function shortLabel(r: GeoResult): string {
 
 // ── Search input with dropdown ─────────────────────────────────────────────
 function LocationInput({
-  placeholder, color, value, onChange, onSelect, zIndex,
+  placeholder, color, value, onChange, onSelect, zIndex, bbox,
 }: {
   placeholder: string; color: string; value: string;
   onChange: (v: string) => void; onSelect: (r: GeoResult) => void; zIndex: number;
+  bbox: string;
 }) {
   const [focused, setFocused] = useState(false);
-  const results = useGeocoder(value);
+  const results = useGeocoder(value, bbox);
   const showDrop = focused && results.length > 0;
 
   return (
@@ -129,16 +119,22 @@ function LocationInput({
 }
 
 // ── Main panel ─────────────────────────────────────────────────────────────
-export function SearchPanel({ onRoute, onClear, loading, onAbout }: Props) {
-  const syncStatus = useSyncStatus();
+export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange }: Props) {
+  const [selectedState, setSelectedState] = useState<StateKey>('ca');
   const [originQ, setOriginQ] = useState('');
   const [destQ,   setDestQ]   = useState('');
   const [origin,  setOrigin]  = useState<GeoResult | null>(null);
   const [dest,    setDest]    = useState<GeoResult | null>(null);
   const [radiusM, setRadiusM] = useState(120);
   const [vehicle, setVehicle] = useState<VehicleType>('gas_avg');
-  const [showOpts, setShowOpts] = useState(false);   // vehicle/radius toggle
-  const [collapsed, setCollapsed] = useState(false); // whole panel collapsed after routing
+  const [showOpts, setShowOpts] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const bbox = STATE_CONFIG[selectedState].bbox;
+  const handleStateSelect = (s: StateKey) => {
+    setSelectedState(s);
+    onStateChange(s);
+  };
 
   const canRoute = !!(origin && dest);
 
@@ -179,12 +175,24 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout }: Props) {
       <TouchableOpacity onPress={onAbout} activeOpacity={0.7}>
         <Text style={styles.title}>⚖️ Fourth Route</Text>
       </TouchableOpacity>
-      <Text style={styles.tagline}>Navigate California within your 4th Amendment rights</Text>
-      <Text style={styles.subtitle}>Find routes that avoid ALPR surveillance cameras</Text>
+      <Text style={styles.tagline}>Navigate within your 4th Amendment rights</Text>
+
+      {/* State selector chips */}
+      <View style={styles.stateRow}>
+        {(Object.keys(STATE_CONFIG) as StateKey[]).map(s => (
+          <TouchableOpacity
+            key={s}
+            style={[styles.stateChip, selectedState === s && styles.stateChipActive]}
+            onPress={() => handleStateSelect(s)}
+          >
+            <Text style={[styles.stateChipText, selectedState === s && styles.stateChipTextActive]}>
+              {STATE_CONFIG[s].flag} {STATE_CONFIG[s].label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <View style={styles.divider} />
-      {syncStatus && (
-        <Text style={styles.syncStatus}>{syncStatus}</Text>
-      )}
 
       <LocationInput
         placeholder="From — any address or place"
@@ -193,6 +201,7 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout }: Props) {
         onChange={(v) => { setOriginQ(v); if (!v) setOrigin(null); }}
         onSelect={setOrigin}
         zIndex={20}
+        bbox={bbox}
       />
       <View style={{ height: 6, zIndex: 1 }} />
       <LocationInput
@@ -202,6 +211,7 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout }: Props) {
         onChange={(v) => { setDestQ(v); if (!v) setDest(null); }}
         onSelect={setDest}
         zIndex={19}
+        bbox={bbox}
       />
 
       {/* Options toggle */}
@@ -262,7 +272,12 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
   title:    { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4, letterSpacing: 0.3 },
-  tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 3, letterSpacing: 0.2 },
+  tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 6, letterSpacing: 0.2 },
+  stateRow: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginBottom: 8 },
+  stateChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#2a2a4a', backgroundColor: '#111127' },
+  stateChipActive: { borderColor: '#E8C97A', backgroundColor: '#E8C97A22' },
+  stateChipText: { color: '#555', fontSize: 10, fontWeight: '500' },
+  stateChipTextActive: { color: '#E8C97A', fontWeight: '700' },
   subtitle: { color: '#888', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   divider:     { height: 1, backgroundColor: '#2a2a4a', marginBottom: 6 },
   syncStatus:  { color: '#444', fontSize: 10, textAlign: 'center', marginBottom: 8, letterSpacing: 0.2 },

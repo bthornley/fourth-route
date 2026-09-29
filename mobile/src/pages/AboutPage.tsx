@@ -34,7 +34,8 @@ export function AboutPage({ navigate }: Props) {
         <View style={styles.hero}>
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
-          <Text style={styles.heroTagline}>Navigate California within your 4th Amendment rights</Text>
+          <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
+          <Text style={styles.heroSub}>Available in California · Washington · Oregon · Texas</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
@@ -55,6 +56,26 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.body}>
             A Brookings Institution analysis found ALPR deployments are <Text style={styles.highlight}>2.3× denser in majority-Black and Latino neighborhoods</Text> — surveillance concentrated where it is least consented to.
           </Text>
+        </View>
+
+        {/* Why these states */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Why these states</Text>
+          <Text style={styles.sectionTitle}>We prioritize places that are fighting back</Text>
+          <Text style={styles.body}>
+            Fourth Route deliberately expands to states where residents, legislatures, and local governments are actively pushing back against mass ALPR surveillance — making our tool most relevant where the political moment is live.
+          </Text>
+          {[
+            ['⚖️ Washington', 'Passed SB 6002 requiring a court-issued probable cause warrant for law enforcement to access ALPR data held by private vendors — the strongest ALPR privacy law in the country.'],
+            ['🏛️ Oregon', 'State law gives residents the right to sue ALPR vendors directly and limits data retention to 30 days. Lawmakers are considering a full ban.'],
+            ['🤠 Texas', '14+ cities and counties have canceled Flock Safety contracts and shut off 900+ cameras after the state blocked ALPR funding. Includes Plano, Kendall County, and others.'],
+            ['🌅 California', '17,405 cameras mapped statewide — the original dataset. Densest ALPR network in the US, with documented use for immigration enforcement and protest tracking.'],
+          ].map(([icon, desc]) => (
+            <View key={icon as string} style={styles.stateCard}>
+              <Text style={styles.stateIcon}>{icon}</Text>
+              <Text style={styles.stateDesc}>{desc}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Concrete example */}
@@ -211,6 +232,7 @@ const styles = StyleSheet.create({
   heroTagline: { color: '#E8C97A', fontSize: 16, fontWeight: '500', textAlign: 'center', marginBottom: 28, lineHeight: 24 },
   heroBtn: { backgroundColor: '#E8C97A', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 24 },
   heroBtnText: { color: '#0d0d1e', fontSize: 15, fontWeight: '700' },
+  heroSub: { color: '#666', fontSize: 13, textAlign: 'center', marginBottom: 24 },
 
   divider: { height: 1, backgroundColor: '#1e1e3a', marginVertical: 8 },
 
