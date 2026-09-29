@@ -22,6 +22,10 @@ export function AboutPage({ navigate }: Props) {
             <Text style={styles.navLink}>Terms</Text>
           </TouchableOpacity>
           <Text style={styles.navDot}>·</Text>
+          <TouchableOpacity onPress={() => navigate('/contact')}>
+            <Text style={styles.navLink}>Contact</Text>
+          </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>
             <Text style={styles.navLink}>GitHub ↗</Text>
           </TouchableOpacity>
@@ -202,6 +206,10 @@ export function AboutPage({ navigate }: Props) {
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => navigate('/terms')}>
               <Text style={styles.footerLink}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>·</Text>
+            <TouchableOpacity onPress={() => navigate('/contact')}>
+              <Text style={styles.footerLink}>Contact</Text>
             </TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>

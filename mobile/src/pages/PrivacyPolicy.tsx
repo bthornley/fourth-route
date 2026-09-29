@@ -20,6 +20,10 @@ export function PrivacyPolicy({ navigate }: Props) {
           <TouchableOpacity onPress={() => navigate('/terms')}>
             <Text style={styles.navLink}>Terms</Text>
           </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
+          <TouchableOpacity onPress={() => navigate('/contact')}>
+            <Text style={styles.navLink}>Contact</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -107,14 +111,20 @@ export function PrivacyPolicy({ navigate }: Props) {
         <Section title="Contact">
           <Body>
             Questions about this privacy policy:{' '}
-            <Anchor url="mailto:bthornley@gmail.com">bthornley@gmail.com</Anchor>
+            <Text style={styles.link} onPress={() => navigate('/contact')}>Contact Form →</Text>
           </Body>
         </Section>
 
         <View style={styles.footer}>
-          <TouchableOpacity onPress={() => navigate('/terms')}>
-            <Text style={styles.footerLink}>Terms of Service →</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity onPress={() => navigate('/terms')}>
+              <Text style={styles.footerLink}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.navDot}>·</Text>
+            <TouchableOpacity onPress={() => navigate('/contact')}>
+              <Text style={styles.footerLink}>Contact Form →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>

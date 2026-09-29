@@ -13,6 +13,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AboutPage } from './src/pages/AboutPage';
 import { PrivacyPolicy } from './src/pages/PrivacyPolicy';
 import { TermsOfService } from './src/pages/TermsOfService';
+import { ContactPage } from './src/pages/ContactPage';
 
 function useNavigator() {
   const [path, setPath] = useState(() =>
@@ -78,6 +79,7 @@ export default function App() {
   if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/privacy') return <><PrivacyPolicy navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/terms') return <><TermsOfService navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  if (path === '/contact') return <><ContactPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
 
   return (
     <>
@@ -140,6 +142,7 @@ export default function App() {
               ['About', '/about'],
               ['Privacy', '/privacy'],
               ['Terms', '/terms'],
+              ['Contact', '/contact'],
             ].map(([label, path]) => (
               <TouchableOpacity key={path} onPress={() => navigate(path)}>
                 <Text style={styles.footerLink}>{label}</Text>

@@ -100,14 +100,36 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         },
       });
 
-      // Fetch all cameras immediately on map load
-      fetch(`${API_BASE}/cameras?limit=5000`)
-        .then(r => r.json())
-        .then((cams: Camera[]) => {
-          const src = m.getSource('cameras') as maplibregl.GeoJSONSource;
-          if (src) src.setData(camerasToGeoJSON(cams));
+      // Fetch cameras via bbox endpoint (no limit) covering all 4 states
+      const ALL_BBOX = { min_lon: -124.5, min_lat: 25.8, max_lon: -93.5, max_lat: 49.0 };
+      const fetchCamerasBbox = (bbox: typeof ALL_BBOX) =>
+        fetch(`${API_BASE}/cameras/bbox`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bbox),
         })
-        .catch(() => {/* silent — cameras will arrive via prop when route runs */});
+          .then(r => r.json())
+          .then((cams: Camera[]) => {
+            const src = m.getSource('cameras') as maplibregl.GeoJSONSource;
+            if (src) src.setData(camerasToGeoJSON(cams));
+          })
+          .catch(() => {});
+
+      // Load all states on init
+      fetchCamerasBbox(ALL_BBOX);
+
+      // Reload by viewport on moveend (debounced) for performance at high zoom
+      let moveTimer: ReturnType<typeof setTimeout>;
+      m.on('moveend', () => {
+        clearTimeout(moveTimer);
+        moveTimer = setTimeout(() => {
+          const b = m.getBounds();
+          fetchCamerasBbox({
+            min_lon: b.getWest(), min_lat: b.getSouth(),
+            max_lon: b.getEast(), max_lat: b.getNorth(),
+          });
+        }, 400);
+      });
 
       // Click → popup
       m.on('click', 'cameras-dot', (e) => {

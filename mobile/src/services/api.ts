@@ -99,24 +99,45 @@ export function routeToGeoJSON(route: ValhallaRoute): [number, number][] {
   return decodePolyline(leg.shape).map(([lat, lon]) => [lon, lat]);
 }
 
+// Fetch with a hard timeout — prevents silent hangs when routing service is down
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error('Routing is currently being updated — check back shortly.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function routeError(body: any, status: number, fallback: string): Error {
+  const detail = (body?.detail ?? '') as string;
+  if (detail.includes('400') || status === 502 || status === 503) {
+    return new Error('Routing is currently being updated for this area — check back shortly.');
+  }
+  return new Error(detail || fallback);
+}
+
 export async function fetchPrivacyRoute(
   originLat: number, originLon: number,
   destLat: number, destLon: number,
   exclusionRadiusM = 40,
 ): Promise<RouteResult> {
-  const res = await fetch(`${API_BASE}/route`, {
+  const res = await fetchWithTimeout(`${API_BASE}/route`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      origin_lat: originLat,
-      origin_lon: originLon,
-      dest_lat: destLat,
-      dest_lon: destLon,
-      exclusion_radius_m: exclusionRadiusM,
-      fallback: true,
+      origin_lat: originLat, origin_lon: originLon,
+      dest_lat: destLat, dest_lon: destLon,
+      exclusion_radius_m: exclusionRadiusM, fallback: true,
     }),
   });
-  if (!res.ok) throw new Error(`Route error: ${res.status}`);
+  if (!res.ok) throw routeError(await res.json().catch(() => ({})), res.status, `Route error: ${res.status}`);
   return res.json();
 }
 
@@ -125,20 +146,17 @@ export async function fetchRouteComparison(
   destLat: number, destLon: number,
   exclusionRadiusM = 40,
 ): Promise<CompareResult> {
-  const res = await fetch(`${API_BASE}/route/compare`, {
+  const res = await fetchWithTimeout(`${API_BASE}/route/compare`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      origin_lat: originLat,
-      origin_lon: originLon,
-      dest_lat: destLat,
-      dest_lon: destLon,
-      exclusion_radius_m: exclusionRadiusM,
-      fallback: true,
-      use_highways: 0.0,   // privacy routing stays on surface streets where cameras are
+      origin_lat: originLat, origin_lon: originLon,
+      dest_lat: destLat, dest_lon: destLon,
+      exclusion_radius_m: exclusionRadiusM, fallback: true,
+      use_highways: 0.0,
     }),
   });
-  if (!res.ok) throw new Error(`Compare error: ${res.status}`);
+  if (!res.ok) throw routeError(await res.json().catch(() => ({})), res.status, `Compare error: ${res.status}`);
   return res.json();
 }
 

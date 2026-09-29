@@ -20,6 +20,10 @@ export function TermsOfService({ navigate }: Props) {
           <TouchableOpacity onPress={() => navigate('/privacy')}>
             <Text style={styles.navLink}>Privacy Policy</Text>
           </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
+          <TouchableOpacity onPress={() => navigate('/contact')}>
+            <Text style={styles.navLink}>Contact</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -43,7 +47,8 @@ export function TermsOfService({ navigate }: Props) {
             <Anchor url="https://github.com/bthornley/fourth-route/blob/main/LICENSE">github.com/bthornley/fourth-route</Anchor>.
           </Body>
           <Body>
-            <Bold>Commercial use:</Bold> Use of this software in a commercial product or paid service requires a separate commercial license from the copyright holder. Contact bthornley@gmail.com for licensing inquiries.
+            <Bold>Commercial use:</Bold> Use of this software in a commercial product or paid service requires a separate commercial license from the copyright holder. Inquire via our{' '}
+            <Text style={styles.link} onPress={() => navigate('/contact')}>Contact Form →</Text>
           </Body>
           <Body>
             Camera location data derived from OpenStreetMap is licensed under the <Bold>Open Database License (ODbL)</Bold>. Data from public records is in the public domain.
@@ -95,14 +100,20 @@ export function TermsOfService({ navigate }: Props) {
         <Section title="Contact">
           <Body>
             Questions about these terms:{' '}
-            <Anchor url="mailto:bthornley@gmail.com">bthornley@gmail.com</Anchor>
+            <Text style={styles.link} onPress={() => navigate('/contact')}>Contact Form →</Text>
           </Body>
         </Section>
 
         <View style={styles.footer}>
-          <TouchableOpacity onPress={() => navigate('/privacy')}>
-            <Text style={styles.footerLink}>← Privacy Policy</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity onPress={() => navigate('/privacy')}>
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.navDot}>·</Text>
+            <TouchableOpacity onPress={() => navigate('/contact')}>
+              <Text style={styles.footerLink}>Contact Form →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>

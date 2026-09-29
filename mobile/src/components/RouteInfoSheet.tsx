@@ -210,15 +210,6 @@ export function RouteInfoSheet({ result, vehicle }: Props) {
         </View>
       </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        {[['#4A90D9','Privacy route'],['#888','Fastest route'],['#E74C3C','ALPR cameras']].map(([c, l]) => (
-          <View key={l} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: c }]} />
-            <Text style={styles.legendText}>{l}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
