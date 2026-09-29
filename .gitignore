@@ -35,3 +35,5 @@ postgres_data/
 .idea/
 .vercel
 .env*
+valhalla/ca_build/
+valhalla/*.tar*
