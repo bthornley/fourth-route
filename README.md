@@ -1,143 +1,240 @@
-# ALPR Navigation — Phase 1
+# Fourth Route
 
-Privacy-focused routing API that sources ALPR camera locations from OpenStreetMap
-and exposes them via a spatial REST API. Phase 2 will add Valhalla routing with
-camera avoidance.
+**Navigate California within your 4th Amendment rights.**
 
-## Stack
+Fourth Route is a free, open-source navigation app that maps 17,405 Automated License Plate Reader (ALPR) cameras across California and calculates a driving route that avoids as many as possible — showing you the exact tradeoff in time, distance, and cameras skipped.
 
-| Layer | Tool |
+🌐 **Live at [fourthroute.org](https://fourthroute.org)** — no account required, no user tracking.
+
+---
+
+## What it does
+
+Enter an origin and destination. Fourth Route returns two routes side by side:
+
+| | Privacy Route | Fastest Route |
+|---|---|---|
+| **Goal** | Avoid ALPR cameras | Minimize travel time |
+| **Shows** | Cameras avoided, unavoidable cameras, time overhead, fuel/CO₂ saved | Baseline time and distance |
+
+**Example — Oakland Financial District → Fruitvale:**
+- Corridor contains **716 ALPR cameras**
+- Privacy route avoids **686** of them (leaves 30 unavoidable)
+- Overhead: **+2 minutes**, ~$0.03 in fuel
+
+---
+
+## Camera data
+
+- **17,405 cameras** mapped across California
+- Sources: OpenStreetMap/Overpass (`surveillance:type=ALPR`), FOIA public records
+- Updated weekly via automated GitHub Actions sync
+- Regions: Bay Area · LA/OC · San Diego · Sacramento · Central Valley · NorCal
+
+---
+
+## Architecture
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
+│  React Native   │────▶│  FastAPI (Railway)   │────▶│ Valhalla Router │
+│  Expo + MapLibre│     │  /route/compare      │     │ (Railway)       │
+│  (Vercel)       │     │  /cameras            │     └─────────────────┘
+└─────────────────┘     │  /cameras/nearby     │
+                        └──────────┬───────────┘
+                                   │
+                        ┌──────────▼───────────┐
+                        │  PostGIS (Supabase)  │
+                        │  17,405 cameras      │
+                        │  ST_DWithin queries  │
+                        └──────────────────────┘
+```
+
+| Layer | Stack |
 |---|---|
-| Database | PostgreSQL 16 + PostGIS 3.4 |
-| API | FastAPI (Python 3.12) |
-| Camera data | OSM Overpass API (DeFlock-tagged nodes) |
-| Infrastructure | Docker Compose |
+| Frontend | React Native / Expo, MapLibre GL, Vercel |
+| API | Python / FastAPI, Railway |
+| Routing | Valhalla routing engine, Railway |
+| Database | PostgreSQL + PostGIS, Supabase |
+| Camera ETL | Python / Overpass API, GitHub Actions (weekly) |
 
 ---
 
-## Prerequisites
+## Privacy
 
-- **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/)  
-  *(Install and start it before running the commands below)*
+Fourth Route collects nothing about you:
 
----
+- No user accounts
+- No route logging
+- No IP storage
+- No location tracking
+- Vercel Analytics records only aggregate page views (no individual user data)
 
-## Quick Start
-
-```bash
-cd ~/Documents/alpr-nav
-chmod +x scripts/quickstart.sh
-./scripts/quickstart.sh
-```
-
-Then open **http://localhost:8000/docs** for the interactive API explorer.
+The camera database is built entirely from public sources. Your route calculations happen server-side with no association to your identity.
 
 ---
 
-## Manual Steps
+## Self-hosting
 
-### 1. Start services
-```bash
-docker compose up -d --build
+### Requirements
+- PostgreSQL 16+ with PostGIS
+- Python 3.12+
+- [Valhalla](https://github.com/valhalla/valhalla) routing engine with California tiles
+
+### 1. Database setup
+
+```sql
+CREATE EXTENSION postgis;
+
+CREATE TABLE cameras (
+    id          SERIAL PRIMARY KEY,
+    osm_id      BIGINT UNIQUE,
+    geom        GEOGRAPHY(Point, 4326) NOT NULL,
+    source      TEXT NOT NULL DEFAULT 'osm',
+    operator    TEXT,
+    direction   INTEGER,
+    confidence  REAL NOT NULL DEFAULT 0.6,
+    notes       TEXT,
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX cameras_geom_idx ON cameras USING GIST(geom);
+
+CREATE TABLE sync_log (
+    id          SERIAL PRIMARY KEY,
+    source      TEXT,
+    started_at  TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    inserted    INTEGER DEFAULT 0,
+    updated     INTEGER DEFAULT 0,
+    deleted     INTEGER DEFAULT 0,
+    error       TEXT
+);
 ```
 
-### 2. Run ETL sync
+### 2. Run the API
 
-**Specific region (fast, good for dev):**
 ```bash
-# SF Bay Area
-DATABASE_URL="postgresql://alpr:alprpass@localhost:5432/alpr_nav" \
-    python3 etl/fetch_cameras.py --bbox "37.2,-122.6,38.0,-121.8"
-
-# Los Angeles
-DATABASE_URL="postgresql://alpr:alprpass@localhost:5432/alpr_nav" \
-    python3 etl/fetch_cameras.py --bbox "33.7,-118.7,34.3,-117.9"
+cd api
+pip install -r requirements.txt
+DATABASE_URL=postgresql://... VALHALLA_URL=http://localhost:8002 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-**Global sync (slow, ~2–5 min):**
+### 3. Seed camera data
+
 ```bash
-DATABASE_URL="postgresql://alpr:alprpass@localhost:5432/alpr_nav" \
-    python3 etl/fetch_cameras.py
+cd etl
+pip install psycopg2-binary requests
+
+# Single region
+DATABASE_URL=postgresql://... python fetch_cameras.py --region bay_area
+
+# All California regions (takes ~10 min, respects Overpass rate limits)
+DATABASE_URL=postgresql://... python fetch_cameras.py --region all
 ```
 
-### 3. Query cameras
+Available regions: `bay_area`, `la_oc`, `san_diego`, `sacramento`, `central_valley`, `norcal`
 
-**All cameras (up to 500):**
-```bash
-curl http://localhost:8000/cameras
-```
-
-**Cameras in a bounding box:**
-```bash
-curl -X POST http://localhost:8000/cameras/bbox \
-  -H "Content-Type: application/json" \
-  -d '{"min_lat":37.7,"min_lon":-122.5,"max_lat":37.8,"max_lon":-122.4}'
-```
-
-**Cameras within 1km of a point:**
-```bash
-curl -X POST http://localhost:8000/cameras/nearby \
-  -H "Content-Type: application/json" \
-  -d '{"lat":37.77,"lon":-122.42,"radius_m":1000}'
-```
-
-**Cameras in a routing corridor:**
-```bash
-curl -X POST "http://localhost:8000/cameras/corridor?\
-origin_lat=37.77&origin_lon=-122.42&\
-dest_lat=37.33&dest_lon=-121.88&buffer_deg=0.05"
-```
-
-**Report a new camera:**
-```bash
-curl -X POST http://localhost:8000/cameras/report \
-  -H "Content-Type: application/json" \
-  -d '{"lat":37.77,"lon":-122.42,"operator":"Flock Safety","notes":"On pole at intersection"}'
-```
-
-**Sync status:**
-```bash
-curl http://localhost:8000/sync/status
-```
-
----
-
-## Stop / Reset
+### 4. Frontend
 
 ```bash
-# Stop services (keep data)
-docker compose down
-
-# Stop and wipe DB (full reset)
-docker compose down -v
+cd mobile
+npm install --legacy-peer-deps
+npm start          # Expo dev server
+npm run build:web  # Production build → web-build/
+npm run deploy     # Build + deploy to Vercel
 ```
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
-alpr-nav/
-├── docker-compose.yml      # PostGIS + API services
-├── db/
-│   └── init.sql            # Schema (runs once on first start)
+fourth-route/
 ├── api/
-│   ├── main.py             # FastAPI app
+│   ├── main.py              # FastAPI app (cameras, routing, health)
+│   ├── routing.py           # Valhalla integration
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── etl/
-│   ├── fetch_cameras.py    # OSM Overpass sync
+│   ├── fetch_cameras.py     # Overpass → PostGIS ETL
 │   └── requirements.txt
-└── scripts/
-    └── quickstart.sh       # One-shot setup
+├── mobile/
+│   ├── App.tsx
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── SearchPanel.tsx      # Geocoding + route input
+│   │   │   ├── MapView.web.tsx      # MapLibre map
+│   │   │   └── RouteInfoSheet.tsx   # Route comparison panel
+│   │   ├── hooks/
+│   │   │   └── useRoute.ts          # Route fetch + state
+│   │   └── services/
+│   │       ├── api.ts               # API client
+│   │       └── fuel.ts              # Fuel/CO₂ calculator
+│   └── vercel.json
+├── valhalla/
+│   ├── start.sh             # Tile download + server start
+│   └── railway.toml
+└── .github/
+    └── workflows/
+        └── sync-cameras.yml # Weekly Overpass sync
 ```
+
+---
+
+## API reference
+
+Base URL: `https://fourth-route-production.up.railway.app`
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Health check (`{"status":"ok","db":true}`) |
+| `/cameras` | GET | All cameras (up to 5,000, `?limit=`) |
+| `/cameras/nearby` | POST | Cameras within radius of a point |
+| `/route/compare` | POST | Privacy route vs fastest route comparison |
+
+### `POST /route/compare`
+
+```json
+{
+  "origin_lat": 37.7946,
+  "origin_lon": -122.3999,
+  "dest_lat": 37.7749,
+  "dest_lon": -122.4194,
+  "vehicle": "sedan",
+  "radius_km": 5
+}
+```
+
+Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_corridor`, and per-route `cameras_avoided` / `cameras_unavoidable`.
 
 ---
 
 ## Roadmap
 
-- [x] **Phase 1** — Camera data layer (this)
-- [ ] **Phase 2** — Valhalla routing with `exclude_polygons`
-- [ ] **Phase 3** — React Native mobile app
-- [ ] **Phase 4** — In-app crowdsourced reporting + moderation
-- [ ] **Phase 5** — Soft-penalty costing model, heatmap, offline tiles
+- [x] PostGIS camera database (17,405 cameras, California)
+- [x] Valhalla routing engine integration
+- [x] Privacy vs fastest route comparison
+- [x] Fuel / CO₂ savings calculator
+- [x] Nominatim geocoding with CA bounds
+- [x] Weekly automated camera sync (GitHub Actions)
+- [ ] In-app crowdsourced camera reporting
+- [ ] Native iOS + Android apps
+- [ ] Expansion beyond California
+
+---
+
+## License
+
+MIT — fork it, self-host it, adapt it for your city.
+
+Camera location data is from OpenStreetMap (ODbL) and public records (public domain).
+
+---
+
+## Background
+
+ALPR networks have expanded from niche law enforcement tools to mass-surveillance infrastructure. Flock Safety alone deployed 100,000+ cameras in 2023. A Brookings Institution analysis found ALPR deployments are 2.3× denser in majority-Black and Latino neighborhoods. Data is retained an average of 12 months with no meaningful public oversight.
+
+Fourth Route is an experiment in making the invisible visible — and giving people the same awareness of surveillance infrastructure that ALPR vendors already sell to their clients.
