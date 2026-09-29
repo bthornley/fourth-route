@@ -8,10 +8,9 @@ primary_region = "lax"
   source = "valhalla_data"
   destination = "/custom_files"
 
-# nginx listens on 8002, proxies to Valhalla on 8003 internally.
-# Fly.io http_service forwards to nginx, which handles any HTTP version/header issues.
+# nginx on 8080 proxies to Valhalla on 8002
 [http_service]
-  internal_port = 8002
+  internal_port = 8080
   force_https = false
   auto_stop_machines = false
   auto_start_machines = true
