@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView,
 } from 'react-native';
@@ -6,29 +6,49 @@ import { MapView } from './src/components/MapView.web';
 import { SearchPanel } from './src/components/SearchPanel';
 import { RouteInfoSheet } from './src/components/RouteInfoSheet';
 import { useRoute } from './src/hooks/useRoute';
-import { reportCamera } from './src/services/api';
+import { CameraReportModal } from './src/components/CameraReportModal';
+
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { AboutPage } from './src/pages/AboutPage';
+import { PrivacyPolicy } from './src/pages/PrivacyPolicy';
+import { TermsOfService } from './src/pages/TermsOfService';
+
+function useNavigator() {
+  const [path, setPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+  const navigate = useCallback((to: string) => {
+    window.history.pushState(null, '', to);
+    setPath(to);
+  }, []);
+  useEffect(() => {
+    const handler = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, []);
+  return { path, navigate };
+}
 
 export default function App() {
+  const { path, navigate } = useNavigator();
+
   const {
     loading, error, result, vehicle,
     privacyLine, standardLine, cameras,
     requestRoute, clearRoute,
   } = useRoute();
 
-  const handleMapLongPress = useCallback(async (lat: number, lon: number) => {
-    if (Platform.OS === 'web') {
-      const operator = window.prompt('Camera operator (or leave blank):') ?? undefined;
-      const notes = window.prompt('Notes (optional):') ?? undefined;
-      try {
-        await reportCamera(lat, lon, operator, notes);
-        alert('Camera reported — thank you!');
-      } catch (e) {
-        alert('Failed to submit report');
-      }
-    }
+  const [reportModal, setReportModal] = useState<{ lat: number; lon: number } | null>(null);
+
+  const handleMapLongPress = useCallback((lat: number, lon: number) => {
+    setReportModal({ lat, lon });
   }, []);
+
+  // Page routing
+  if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  if (path === '/privacy') return <><PrivacyPolicy navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  if (path === '/terms') return <><TermsOfService navigate={navigate} /><Analytics /><SpeedInsights /></>;
 
   return (
     <>
@@ -51,6 +71,7 @@ export default function App() {
             onRoute={requestRoute}
             onClear={clearRoute}
             loading={loading}
+            onAbout={() => navigate('/about')}
           />
 
           {/* Error banner */}
@@ -72,13 +93,25 @@ export default function App() {
                 Pick an origin + destination above, then tap Route →
               </Text>
               <Text style={styles.hintSub}>
-                Right-click the map to report a camera
+                Right-click (or long-press) the map to report a camera
               </Text>
             </View>
           )}
         </View>
       </View>
     </SafeAreaView>
+    {reportModal && (
+      <CameraReportModal
+        visible={!!reportModal}
+        lat={reportModal.lat}
+        lon={reportModal.lon}
+        onSubmit={async (lat, lon, operator, notes) => {
+          const { reportCamera } = await import('./src/services/api');
+          await reportCamera(lat, lon, operator, notes);
+        }}
+        onClose={() => setReportModal(null)}
+      />
+    )}
     <Analytics />
     <SpeedInsights />
   </>

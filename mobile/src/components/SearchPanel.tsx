@@ -4,6 +4,32 @@ import {
   ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
+import { API_BASE } from '../services/api';
+
+// ── Sync status ────────────────────────────────────────────────────────────
+function useSyncStatus(): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(`${API_BASE}/sync/status`)
+      .then(r => r.json())
+      .then(data => {
+        const total: number = data.total_cameras ?? 0;
+        const syncs: { finished_at: string; error: string | null }[] = data.recent_syncs ?? [];
+        const lastGood = syncs.find(s => !s.error);
+        if (!lastGood || !total) return;
+        const diffMs = Date.now() - new Date(lastGood.finished_at).getTime();
+        const diffDays = Math.floor(diffMs / 86_400_000);
+        const age = diffDays === 0 ? 'today'
+          : diffDays === 1 ? 'yesterday'
+          : `${diffDays} days ago`;
+        const totalStr = total.toLocaleString();
+        setLabel(`📡 ${totalStr} cameras · synced ${age}`);
+      })
+      .catch(() => { /* silent — non-critical */ });
+  }, []);
+  return label;
+}
+
 
 interface Props {
   onRoute: (
@@ -14,6 +40,7 @@ interface Props {
   ) => void;
   onClear: () => void;
   loading: boolean;
+  onAbout: () => void;
 }
 
 interface GeoResult {
@@ -102,7 +129,8 @@ function LocationInput({
 }
 
 // ── Main panel ─────────────────────────────────────────────────────────────
-export function SearchPanel({ onRoute, onClear, loading }: Props) {
+export function SearchPanel({ onRoute, onClear, loading, onAbout }: Props) {
+  const syncStatus = useSyncStatus();
   const [originQ, setOriginQ] = useState('');
   const [destQ,   setDestQ]   = useState('');
   const [origin,  setOrigin]  = useState<GeoResult | null>(null);
@@ -148,10 +176,15 @@ export function SearchPanel({ onRoute, onClear, loading }: Props) {
   // ── Full panel ──
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>⚖️ Fourth Route</Text>
+      <TouchableOpacity onPress={onAbout} activeOpacity={0.7}>
+        <Text style={styles.title}>⚖️ Fourth Route</Text>
+      </TouchableOpacity>
       <Text style={styles.tagline}>Navigate California within your 4th Amendment rights</Text>
       <Text style={styles.subtitle}>Find routes that avoid ALPR surveillance cameras</Text>
       <View style={styles.divider} />
+      {syncStatus && (
+        <Text style={styles.syncStatus}>{syncStatus}</Text>
+      )}
 
       <LocationInput
         placeholder="From — any address or place"
@@ -231,7 +264,9 @@ const styles = StyleSheet.create({
   title:    { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4, letterSpacing: 0.3 },
   tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 3, letterSpacing: 0.2 },
   subtitle: { color: '#888', fontSize: 11, textAlign: 'center', marginBottom: 10 },
-  divider:  { height: 1, backgroundColor: '#2a2a4a', marginBottom: 10 },
+  divider:     { height: 1, backgroundColor: '#2a2a4a', marginBottom: 6 },
+  syncStatus:  { color: '#444', fontSize: 10, textAlign: 'center', marginBottom: 8, letterSpacing: 0.2 },
+
 
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
