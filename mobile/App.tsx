@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView,
+  View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView, TouchableOpacity,
 } from 'react-native';
 import { MapView } from './src/components/MapView.web';
 import { SearchPanel, StateKey, STATE_CONFIG } from './src/components/SearchPanel';
@@ -133,6 +133,19 @@ export default function App() {
               </Text>
             </View>
           )}
+
+          {/* Footer links */}
+          <View style={styles.footer} pointerEvents="box-none">
+            {[
+              ['About', '/about'],
+              ['Privacy', '/privacy'],
+              ['Terms', '/terms'],
+            ].map(([label, path]) => (
+              <TouchableOpacity key={path} onPress={() => navigate(path)}>
+                <Text style={styles.footerLink}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -162,7 +175,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     position: 'absolute' as any,
-    top: 0, left: 0, right: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     pointerEvents: 'box-none' as any,
   },
   errorBanner: {
@@ -179,6 +192,23 @@ const styles = StyleSheet.create({
   },
   hintText: { color: '#aaa', textAlign: 'center', fontSize: 13 },
   hintSub: { color: '#555', textAlign: 'center', fontSize: 11, marginTop: 4 },
+  footer: {
+    position: 'absolute' as any,
+    bottom: 40,
+    left: 0, right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+    alignItems: 'center',
+  },
+  footerLink: {
+    color: '#aaa',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(13,13,30,0.75)',
+    borderRadius: 6,
+  },
   syncBadge: {
     position: 'absolute' as any,
     bottom: 28,

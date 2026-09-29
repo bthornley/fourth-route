@@ -217,7 +217,7 @@ Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_cor
 - [x] Valhalla routing engine integration
 - [x] Privacy vs fastest route comparison
 - [x] Fuel / CO₂ savings calculator
-- [x] Nominatim geocoding with CA bounds
+- [x] Nominatim geocoding with multi-state bounds
 - [x] Weekly automated camera sync (GitHub Actions)
 - [x] In-app crowdsourced camera reporting
 - [ ] Native iOS + Android apps
