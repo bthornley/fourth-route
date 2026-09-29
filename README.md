@@ -1,8 +1,8 @@
 # Fourth Route
 
-**Navigate California within your 4th Amendment rights.**
+**Navigate within your 4th Amendment rights — CA, WA, OR & TX.**
 
-Fourth Route is a free, open-source navigation app that maps 17,405 Automated License Plate Reader (ALPR) cameras across California and calculates a driving route that avoids as many as possible — showing you the exact tradeoff in time, distance, and cameras skipped.
+Fourth Route is a free, open-source navigation app that maps 38,368 Automated License Plate Reader (ALPR) cameras across California, Washington, Oregon, and Texas and calculates a driving route that avoids as many as possible — showing you the exact tradeoff in time, distance, and cameras skipped.
 
 🌐 **Live at [fourthroute.org](https://fourthroute.org)** — no account required, no user tracking.
 
@@ -26,7 +26,7 @@ Enter an origin and destination. Fourth Route returns two routes side by side:
 
 ## Camera data
 
-- **17,405 cameras** mapped across California
+- **38,368 cameras** mapped across CA, WA, OR & TX
 - Sources: OpenStreetMap/Overpass (`surveillance:type=ALPR`), FOIA public records
 - Updated weekly via automated GitHub Actions sync
 - Regions: Bay Area · LA/OC · San Diego · Sacramento · Central Valley · NorCal
@@ -45,7 +45,7 @@ Enter an origin and destination. Fourth Route returns two routes side by side:
                                    │
                         ┌──────────▼───────────┐
                         │  PostGIS (Supabase)  │
-                        │  17,405 cameras      │
+                        │  38,368 cameras          │
                         │  ST_DWithin queries  │
                         └──────────────────────┘
 ```
@@ -79,7 +79,7 @@ The camera database is built entirely from public sources. Your route calculatio
 ### Requirements
 - PostgreSQL 16+ with PostGIS
 - Python 3.12+
-- [Valhalla](https://github.com/valhalla/valhalla) routing engine with California tiles
+- [Valhalla routing engine with multi-state tiles (CA, WA, OR, TX)
 
 ### 1. Database setup
 
@@ -130,7 +130,7 @@ pip install psycopg2-binary requests
 # Single region
 DATABASE_URL=postgresql://... python fetch_cameras.py --region bay_area
 
-# All California regions (takes ~10 min, respects Overpass rate limits)
+# All regions — CA, WA, OR, TX (takes ~15 min, respects Overpass rate limits)
 DATABASE_URL=postgresql://... python fetch_cameras.py --region all
 ```
 
@@ -213,7 +213,7 @@ Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_cor
 
 ## Roadmap
 
-- [x] PostGIS camera database (17,405 cameras, California)
+- [x] PostGIS camera database (38,368 cameras — CA, WA, OR, TX)
 - [x] Valhalla routing engine integration
 - [x] Privacy vs fastest route comparison
 - [x] Fuel / CO₂ savings calculator
@@ -221,7 +221,7 @@ Response includes `privacy_route`, `standard_route`, `overhead`, `cameras_in_cor
 - [x] Weekly automated camera sync (GitHub Actions)
 - [x] In-app crowdsourced camera reporting
 - [ ] Native iOS + Android apps
-- [ ] Expansion beyond California
+- [x] Expansion to WA, OR, TX (states actively fighting ALPR surveillance)
 
 ---
 
