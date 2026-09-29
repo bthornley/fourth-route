@@ -42,7 +42,8 @@ else
 fi
 
 # Start nginx reverse proxy on port 8002 → Valhalla on 8003
-# nginx runs as root daemon; gis-ops run.sh requires valhalla user so we su
+# Delete cached config as root (valhalla user can't remove root-owned file)
+rm -f /custom_files/valhalla.json
 echo "Starting nginx (port 8002 → Valhalla:8003)..."
 nginx
 
@@ -55,6 +56,5 @@ exec su -s /bin/bash valhalla -c "
   export server_threads=2
   export port=8003
   export PORT=8003
-  rm -f /custom_files/valhalla.json
   exec /valhalla/scripts/run.sh build_tiles
 "
