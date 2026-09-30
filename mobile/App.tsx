@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     borderRadius: 12, alignItems: 'center',
     borderWidth: 1, borderColor: '#333',
   },
-  hintText: { color: '#aaa', textAlign: 'center', fontSize: 13 },
-  hintSub: { color: '#555', textAlign: 'center', fontSize: 11, marginTop: 4 },
+  hintText: { color: '#eee', textAlign: 'center', fontSize: 13, fontWeight: '500' },
+  hintSub: { color: '#aaa', textAlign: 'center', fontSize: 11, marginTop: 4 },
   footer: {
     position: 'absolute' as any,
     bottom: 40,

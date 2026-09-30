@@ -88,7 +88,7 @@ function LocationInput({
         <TextInput
           style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor="#777"
+          placeholderTextColor="#999"
           value={value}
           onChangeText={onChange}
           onFocus={() => setFocused(true)}
@@ -227,9 +227,10 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
       <TouchableOpacity
         style={styles.optsToggle}
         onPress={() => setShowOpts(v => !v)}
+        activeOpacity={0.7}
       >
         <Text style={styles.optsToggleText}>
-          {showOpts ? '▲ Hide options' : `⚙ ${VEHICLE_PROFILES[vehicle].emoji} ${VEHICLE_PROFILES[vehicle].label} · ${radiusM}m radius`}
+          {showOpts ? '▲ Hide vehicle & radius' : `⚙️ ${VEHICLE_PROFILES[vehicle].emoji} ${VEHICLE_PROFILES[vehicle].label} · ${radiusM}m radius`}
         </Text>
       </TouchableOpacity>
 
@@ -324,17 +325,17 @@ const styles = StyleSheet.create({
   dropMain:    { color: '#eee', fontSize: 13, fontWeight: '500' },
   dropSub:     { color: '#555', fontSize: 10, marginTop: 2 },
 
-  optsToggle:     { alignItems: 'center', paddingVertical: 6 },
-  optsToggleText: { color: '#555', fontSize: 11 },
+  optsToggle:     { alignSelf: 'center', paddingVertical: 5, paddingHorizontal: 12, marginVertical: 4, borderRadius: 8, backgroundColor: '#111127', borderWidth: 1, borderColor: '#2a2a4a' },
+  optsToggleText: { color: '#E8C97A', fontSize: 11.5, fontWeight: '600' },
 
-  row:     { marginBottom: 8 },
-  label:   { color: '#555', fontSize: 10, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  chip:    { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#2a2a4a', borderWidth: 1, borderColor: '#444' },
+  row:     { marginBottom: 8, marginTop: 4 },
+  label:   { color: '#bbb', fontSize: 10.5, fontWeight: '700', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip:    { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: '#13132a', borderWidth: 1, borderColor: '#333355' },
   chipVehicle: { backgroundColor: '#E67E22', borderColor: '#E67E22' },
   chipRadius:  { backgroundColor: '#8E44AD', borderColor: '#8E44AD' },
-  chipText:    { color: '#888', fontSize: 11 },
-  chipTextOn:  { color: '#fff', fontWeight: '600' },
+  chipText:    { color: '#aaa', fontSize: 11, fontWeight: '500' },
+  chipTextOn:  { color: '#fff', fontWeight: '700' },
 
   btnRow: { marginTop: 8 },
   goBtn:  { backgroundColor: '#4A90D9', paddingVertical: 11, borderRadius: 10, alignItems: 'center' },

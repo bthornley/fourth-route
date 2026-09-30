@@ -259,26 +259,26 @@ const styles = StyleSheet.create({
 
   // Fuel card
   fuelCard: {
-    backgroundColor: '#0d1a0d', borderWidth: 1, borderColor: '#27AE60',
+    backgroundColor: '#0a1a0f', borderWidth: 1, borderColor: '#27AE60',
     borderRadius: 12, padding: 12, marginBottom: 12,
   },
   fuelHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 10,
   },
-  fuelTitle: { color: '#27AE60', fontWeight: '700', fontSize: 13 },
-  fuelVehicle: { color: '#666', fontSize: 11 },
+  fuelTitle: { color: '#2ECC71', fontWeight: '700', fontSize: 13 },
+  fuelVehicle: { color: '#ccc', fontSize: 11, fontWeight: '500' },
   fuelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   fuelStat: { flex: 1, alignItems: 'center' },
   fuelStatVal: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  fuelStatLabel: { color: '#666', fontSize: 10, marginTop: 2 },
+  fuelStatLabel: { color: '#bbb', fontSize: 10.5, marginTop: 2, fontWeight: '500' },
   fuelDivider: { width: 1, height: 32, backgroundColor: '#1e3a1e' },
   annualRow: {
-    backgroundColor: '#0a2a0a', borderRadius: 8, padding: 8, marginBottom: 6,
+    backgroundColor: '#0f2915', borderRadius: 8, padding: 8, marginBottom: 6,
   },
-  annualText: { color: '#888', fontSize: 11, textAlign: 'center' },
-  annualHighlight: { color: '#2ECC71', fontWeight: '600' },
-  fuelDisclaimer: { color: '#444', fontSize: 9, textAlign: 'center' },
+  annualText: { color: '#ccc', fontSize: 11, textAlign: 'center' },
+  annualHighlight: { color: '#4ade80', fontWeight: '600' },
+  fuelDisclaimer: { color: '#999', fontSize: 10, textAlign: 'center', marginTop: 2 },
 
   // Camera stats
   statsRow: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   stat: { alignItems: 'center' },
   statVal: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  statLabel: { color: '#666', fontSize: 10, textAlign: 'center', marginTop: 2 },
+  statLabel: { color: '#bbb', fontSize: 10.5, textAlign: 'center', marginTop: 2, fontWeight: '500' },
 
   legend: { flexDirection: 'row', justifyContent: 'space-around' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
