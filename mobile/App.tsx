@@ -10,6 +10,7 @@ import { CameraReportModal } from './src/components/CameraReportModal';
 
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { track } from '@vercel/analytics';
 import { AboutPage } from './src/pages/AboutPage';
 import { PrivacyPolicy } from './src/pages/PrivacyPolicy';
 import { TermsOfService } from './src/pages/TermsOfService';
@@ -22,6 +23,9 @@ function useNavigator() {
   const navigate = useCallback((to: string) => {
     window.history.pushState(null, '', to);
     setPath(to);
+    try {
+      track('navigation', { page: to });
+    } catch {}
   }, []);
   useEffect(() => {
     const handler = () => setPath(window.location.pathname);
@@ -161,6 +165,9 @@ export default function App() {
         onSubmit={async (lat, lon, operator, notes) => {
           const { reportCamera } = await import('./src/services/api');
           await reportCamera(lat, lon, operator, notes);
+          try {
+            track('camera_reported', { operator: operator || 'unknown' });
+          } catch {}
         }}
         onClose={() => setReportModal(null)}
       />

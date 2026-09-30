@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
+import { track } from '@vercel/analytics';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
 
 interface Props {
@@ -269,6 +270,9 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
   const handleStateSelect = (s: StateKey) => {
     setSelectedState(s);
     onStateChange(s);
+    try {
+      track('state_selected', { state: s });
+    } catch {}
   };
 
   const canRoute = !!(origin && dest);

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { track } from '@vercel/analytics';
 import {
   fetchRouteComparison,
   fetchCamerasNearby,
@@ -70,6 +71,18 @@ export function useRoute() {
 
       if (reqId !== activeReqId.current) return;
       setState({ loading: false, error: null, result, vehicle, privacyLine, standardLine, cameras });
+
+      try {
+        track('route_calculated', {
+          cameras_avoided: result.privacy_route?.cameras_avoided ?? 0,
+          cameras_unavoidable: result.cameras_in_corridor - (result.privacy_route?.cameras_avoided ?? 0),
+          cameras_in_corridor: result.cameras_in_corridor,
+          overhead_seconds: result.overhead?.extra_seconds ?? 0,
+          overhead_miles: Number((result.overhead?.extra_miles ?? 0).toFixed(2)),
+          radius_m: exclusionRadiusM,
+          vehicle,
+        });
+      } catch {}
     } catch (e: any) {
       if (reqId !== activeReqId.current) return;
       setState(s => ({ ...s, loading: false, error: e.message ?? 'Unknown error' }));
@@ -83,6 +96,9 @@ export function useRoute() {
       vehicle: s.vehicle,          // keep vehicle selection across clears
       privacyLine: [], standardLine: [], cameras: [],
     }));
+    try {
+      track('route_cleared');
+    } catch {}
   }, []);
 
   return { ...state, requestRoute, clearRoute };
