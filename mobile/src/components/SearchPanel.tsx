@@ -34,39 +34,147 @@ export const STATE_CONFIG: Record<StateKey, {
 };
 
 interface GeoResult {
+  place_id?: number | string;
+  name?: string;
   display_name: string;
   lat: string;
   lon: string;
   address?: Record<string, string>;
 }
 
-// ── Nominatim autocomplete ─────────────────────────────────────────────────
-function useGeocoder(query: string, bbox: string): GeoResult[] {
-  const [results, setResults] = useState<GeoResult[]>([]);
-  const timer = useRef<any>(null);
-  useEffect(() => {
-    if (query.length < 2) { setResults([]); return; }
-    clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1&viewbox=${bbox}`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.app)' } });
-        setResults(await res.json());
-      } catch { setResults([]); }
-    }, 380);
-    return () => clearTimeout(timer.current);
-  }, [query, bbox]);
-  return results;
+const US_STATE_ABBR: Record<string, string> = {
+  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+  'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+  'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+  'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+  'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+  'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+  'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+  'District of Columbia': 'DC',
+};
+
+export function formatPlace(r: GeoResult): { main: string; secondary: string; full: string } {
+  const a = r.address ?? {};
+  const state = a.state ? (US_STATE_ABBR[a.state] || a.state) : '';
+  const city = a.city || a.town || a.village || a.municipality || a.suburb || a.hamlet || '';
+  const rawName = (r.name || '').trim();
+
+  let main = '';
+  let secondary = '';
+
+  // 1. Street Address with house number (e.g. "123 Main St")
+  if (a.house_number && a.road) {
+    const streetAddr = `${a.house_number} ${a.road}`;
+    if (rawName && rawName !== a.house_number && rawName !== a.road && rawName !== streetAddr) {
+      main = rawName;
+      const cityState = [city, state].filter(Boolean).join(', ');
+      const secLoc = cityState ? (a.postcode ? `${cityState} ${a.postcode}` : cityState) : (a.postcode || '');
+      secondary = [streetAddr, secLoc].filter(Boolean).join(', ');
+    } else {
+      main = streetAddr;
+      const cityArea = city || a.quarter || a.neighbourhood || '';
+      const cityState = [cityArea, state].filter(Boolean).join(', ');
+      secondary = cityState ? (a.postcode ? `${cityState} ${a.postcode}` : cityState) : (a.postcode || '');
+    }
+  }
+  // 2. Named POI / venue / airport / park (e.g. "Oakland International Airport")
+  else if (rawName && rawName !== city && rawName !== state) {
+    main = rawName;
+    const secParts = [a.road, city || a.county, state].filter(Boolean);
+    secondary = secParts.join(', ');
+  }
+  // 3. Just a road / highway (e.g. "Broadway", "I-80")
+  else if (a.road) {
+    main = a.road;
+    const secParts = [city || a.county, state].filter(Boolean);
+    secondary = secParts.join(', ');
+  }
+  // 4. Neighborhood / Suburb / Quarter
+  else if (a.neighbourhood || a.suburb || a.quarter || a.district) {
+    main = (a.neighbourhood || a.suburb || a.quarter || a.district)!;
+    const secParts = [city || a.county, state].filter(Boolean);
+    secondary = secParts.join(', ');
+  }
+  // 5. City / Town
+  else if (city) {
+    main = city;
+    const secParts = [a.county, state].filter(Boolean);
+    secondary = secParts.join(', ');
+  }
+  // 6. Fallback from display_name
+  else {
+    const parts = (r.display_name || '').split(',').map(s => s.trim());
+    main = parts[0] || 'Unknown location';
+    secondary = parts.slice(1, 3).join(', ');
+  }
+
+  const full = secondary ? `${main}, ${secondary}` : main;
+  return { main, secondary, full };
 }
 
 function shortLabel(r: GeoResult): string {
-  const a = r.address ?? {};
-  const parts = [
-    a.neighbourhood || a.suburb || a.quarter || a.district || a.town || a.village,
-    a.city || a.county,
-    a.state,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : r.display_name.split(',').slice(0, 2).join(',').trim();
+  const { main, secondary } = formatPlace(r);
+  if (secondary) {
+    const firstSec = secondary.split(',')[0].trim();
+    if (firstSec && firstSec !== main) {
+      return `${main}, ${firstSec}`;
+    }
+  }
+  return main;
+}
+
+// ── Nominatim autocomplete with race-condition cancellation & faster debounce ──
+function useGeocoder(query: string, bbox: string): { results: GeoResult[]; loading: boolean } {
+  const [results, setResults] = useState<GeoResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef<any>(null);
+  const abortCtrl = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      if (abortCtrl.current) abortCtrl.current.abort();
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      if (abortCtrl.current) abortCtrl.current.abort();
+      const ctrl = new AbortController();
+      abortCtrl.current = ctrl;
+      setLoading(true);
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=us&addressdetails=1&dedupe=1&viewbox=${bbox}`;
+        const res = await fetch(url, {
+          signal: ctrl.signal,
+          headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.org)' },
+        });
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+        setResults(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setResults([]);
+        }
+      } finally {
+        if (!ctrl.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(timer.current);
+    };
+  }, [query, bbox]);
+
+  return { results, loading };
 }
 
 // ── Search input with dropdown ─────────────────────────────────────────────
@@ -78,7 +186,7 @@ function LocationInput({
   bbox: string;
 }) {
   const [focused, setFocused] = useState(false);
-  const results = useGeocoder(value, bbox);
+  const { results, loading } = useGeocoder(value, bbox);
   const showDrop = focused && results.length > 0;
 
   return (
@@ -88,30 +196,47 @@ function LocationInput({
         <TextInput
           style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor="#999"
+          placeholderTextColor="#888"
           value={value}
           onChangeText={onChange}
           onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onBlur={() => setTimeout(() => setFocused(false), 200)}
         />
+        {loading && (
+          <ActivityIndicator size="small" color="#E8C97A" style={{ marginRight: 6 }} />
+        )}
         {value.length > 0 && (
-          <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => { onChange(''); setFocused(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.clearX}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
       {showDrop && (
         <View style={styles.dropdown}>
-          {results.map((r, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.dropItem, i < results.length - 1 && styles.dropDivider]}
-              onPress={() => { onSelect(r); onChange(shortLabel(r)); setFocused(false); }}
-            >
-              <Text style={styles.dropMain} numberOfLines={1}>{shortLabel(r)}</Text>
-              <Text style={styles.dropSub} numberOfLines={1}>{r.display_name}</Text>
-            </TouchableOpacity>
-          ))}
+          {results.map((r, i) => {
+            const formatted = formatPlace(r);
+            return (
+              <TouchableOpacity
+                key={r.place_id ? String(r.place_id) : String(i)}
+                style={[styles.dropItem, i < results.length - 1 && styles.dropDivider]}
+                onPress={() => {
+                  onSelect(r);
+                  onChange(formatted.full);
+                  setFocused(false);
+                }}
+              >
+                <View style={styles.dropRow}>
+                  <Text style={styles.dropPin}>📍</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dropMain} numberOfLines={1}>{formatted.main}</Text>
+                    {!!formatted.secondary && (
+                      <Text style={styles.dropSub} numberOfLines={1}>{formatted.secondary}</Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
     </View>
@@ -316,14 +441,17 @@ const styles = StyleSheet.create({
 
   dropdown: {
     position: 'absolute' as any, top: '100%', left: 0, right: 0,
-    backgroundColor: '#1e1e3a', borderRadius: 10,
-    borderWidth: 1, borderColor: '#333', marginTop: 3,
-    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 10, elevation: 20,
+    backgroundColor: '#181832', borderRadius: 10,
+    borderWidth: 1, borderColor: '#333355', marginTop: 4,
+    shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 12, elevation: 20,
+    overflow: 'hidden' as any,
   },
-  dropItem:    { paddingHorizontal: 12, paddingVertical: 8 },
-  dropDivider: { borderBottomWidth: 1, borderBottomColor: '#2a2a4a' },
-  dropMain:    { color: '#eee', fontSize: 13, fontWeight: '500' },
-  dropSub:     { color: '#555', fontSize: 10, marginTop: 2 },
+  dropItem:    { paddingHorizontal: 12, paddingVertical: 9 },
+  dropDivider: { borderBottomWidth: 1, borderBottomColor: '#252544' },
+  dropRow:     { flexDirection: 'row', alignItems: 'center' },
+  dropPin:     { fontSize: 13, marginRight: 8, opacity: 0.8 },
+  dropMain:    { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  dropSub:     { color: '#a0a0c0', fontSize: 11, marginTop: 2 },
 
   optsToggle:     { alignSelf: 'center', paddingVertical: 5, paddingHorizontal: 12, marginVertical: 4, borderRadius: 8, backgroundColor: '#111127', borderWidth: 1, borderColor: '#2a2a4a' },
   optsToggleText: { color: '#E8C97A', fontSize: 11.5, fontWeight: '600' },
