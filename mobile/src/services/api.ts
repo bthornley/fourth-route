@@ -107,7 +107,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (e: any) {
     if (e?.name === 'AbortError') {
-      throw new Error('Routing is currently being updated — check back shortly.');
+      throw new Error('Routing request timed out. Please try again.');
     }
     throw e;
   } finally {
@@ -118,7 +118,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
 function routeError(body: any, status: number, fallback: string): Error {
   const detail = (body?.detail ?? '') as string;
   if (detail.includes('400') || status === 502 || status === 503) {
-    return new Error('Routing is currently being updated for this area — check back shortly.');
+    return new Error('Privacy routing is currently enabled in California only. Camera data is live for this region.');
   }
   return new Error(detail || fallback);
 }

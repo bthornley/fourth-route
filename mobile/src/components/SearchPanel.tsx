@@ -192,6 +192,15 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
         ))}
       </View>
 
+      {/* Region routing availability notice */}
+      {selectedState !== 'ca' && (
+        <View style={styles.stateNotice}>
+          <Text style={styles.stateNoticeText}>
+            ℹ️ Camera data is live · Privacy routing is currently enabled in California only
+          </Text>
+        </View>
+      )}
+
       <View style={styles.divider} />
 
       <LocationInput
@@ -278,6 +287,17 @@ const styles = StyleSheet.create({
   stateChipActive: { borderColor: '#E8C97A', backgroundColor: '#E8C97A22' },
   stateChipText: { color: '#555', fontSize: 10, fontWeight: '500' },
   stateChipTextActive: { color: '#E8C97A', fontWeight: '700' },
+  stateNotice: {
+    backgroundColor: '#111127',
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  stateNoticeText: { color: '#aaa', fontSize: 11, textAlign: 'center', lineHeight: 15 },
   subtitle: { color: '#888', fontSize: 11, textAlign: 'center', marginBottom: 10 },
   divider:     { height: 1, backgroundColor: '#2a2a4a', marginBottom: 6 },
   syncStatus:  { color: '#444', fontSize: 10, textAlign: 'center', marginBottom: 8, letterSpacing: 0.2 },
