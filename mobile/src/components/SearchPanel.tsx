@@ -16,6 +16,7 @@ interface Props {
   loading: boolean;
   onAbout: () => void;
   onStateChange: (state: StateKey) => void;
+  hasRoute?: boolean;
 }
 
 export type StateKey = 'all' | 'ca' | 'wa' | 'or' | 'tx';
@@ -56,7 +57,8 @@ const US_STATE_ABBR: Record<string, string> = {
   'District of Columbia': 'DC',
 };
 
-export function formatPlace(r: GeoResult): { main: string; secondary: string; full: string } {
+export function formatPlace(r?: GeoResult | null): { main: string; secondary: string; full: string } {
+  if (!r) return { main: '', secondary: '', full: '' };
   const a = r.address ?? {};
   const state = a.state ? (US_STATE_ABBR[a.state] || a.state) : '';
   const city = a.city || a.town || a.village || a.municipality || a.suburb || a.hamlet || '';
@@ -115,7 +117,8 @@ export function formatPlace(r: GeoResult): { main: string; secondary: string; fu
   return { main, secondary, full };
 }
 
-function shortLabel(r: GeoResult): string {
+function shortLabel(r?: GeoResult | null): string {
+  if (!r) return '';
   const { main, secondary } = formatPlace(r);
   if (secondary) {
     const firstSec = secondary.split(',')[0].trim();
@@ -179,10 +182,10 @@ function useGeocoder(query: string, bbox: string): { results: GeoResult[]; loadi
 
 // ── Search input with dropdown ─────────────────────────────────────────────
 function LocationInput({
-  placeholder, color, value, onChange, onSelect, zIndex, bbox,
+  placeholder, color, value, onChange, onSelect, onClearInput, zIndex, bbox,
 }: {
   placeholder: string; color: string; value: string;
-  onChange: (v: string) => void; onSelect: (r: GeoResult) => void; zIndex: number;
+  onChange: (v: string) => void; onSelect: (r: GeoResult) => void; onClearInput?: () => void; zIndex: number;
   bbox: string;
 }) {
   const [focused, setFocused] = useState(false);
@@ -206,7 +209,14 @@ function LocationInput({
           <ActivityIndicator size="small" color="#E8C97A" style={{ marginRight: 6 }} />
         )}
         {value.length > 0 && (
-          <TouchableOpacity onPress={() => { onChange(''); setFocused(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => {
+              onChange('');
+              setFocused(false);
+              onClearInput?.();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Text style={styles.clearX}>✕</Text>
           </TouchableOpacity>
         )}
@@ -244,7 +254,7 @@ function LocationInput({
 }
 
 // ── Main panel ─────────────────────────────────────────────────────────────
-export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange }: Props) {
+export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange, hasRoute }: Props) {
   const [selectedState, setSelectedState] = useState<StateKey>('ca');
   const [originQ, setOriginQ] = useState('');
   const [destQ,   setDestQ]   = useState('');
@@ -274,9 +284,12 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
   };
 
   const handleClear = () => {
-    setOriginQ(''); setDestQ('');
-    setOrigin(null); setDest(null);
-    setCollapsed(false); setShowOpts(false);
+    setOriginQ('');
+    setDestQ('');
+    setOrigin(null);
+    setDest(null);
+    setCollapsed(false);
+    setShowOpts(false);
     onClear();
   };
 
@@ -285,7 +298,7 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
     return (
       <View style={styles.collapsedBar}>
         <Text style={styles.collapsedText} numberOfLines={1}>
-          {shortLabel(origin!)} → {shortLabel(dest!)}
+          {shortLabel(origin)} → {shortLabel(dest)}
         </Text>
         <TouchableOpacity onPress={handleClear} style={styles.collapsedClear}>
           <Text style={styles.collapsedClearText}>✕ Clear</Text>
@@ -332,8 +345,18 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
         placeholder="From — any address or place"
         color="#4A90D9"
         value={originQ}
-        onChange={(v) => { setOriginQ(v); if (!v) setOrigin(null); }}
+        onChange={(v) => {
+          setOriginQ(v);
+          if (!v) {
+            setOrigin(null);
+            if (hasRoute) onClear();
+          }
+        }}
         onSelect={setOrigin}
+        onClearInput={() => {
+          setOrigin(null);
+          if (hasRoute) onClear();
+        }}
         zIndex={20}
         bbox={bbox}
       />
@@ -342,8 +365,18 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
         placeholder="To — any address or place"
         color="#27AE60"
         value={destQ}
-        onChange={(v) => { setDestQ(v); if (!v) setDest(null); }}
+        onChange={(v) => {
+          setDestQ(v);
+          if (!v) {
+            setDest(null);
+            if (hasRoute) onClear();
+          }
+        }}
         onSelect={setDest}
+        onClearInput={() => {
+          setDest(null);
+          if (hasRoute) onClear();
+        }}
         zIndex={19}
         bbox={bbox}
       />
@@ -386,7 +419,7 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
 
       <View style={styles.btnRow}>
         <TouchableOpacity
-          style={[styles.goBtn, !canRoute && styles.goBtnOff]}
+          style={[styles.goBtn, !canRoute && styles.goBtnOff, hasRoute && { flex: 1, marginRight: 8 }]}
           onPress={handleGo}
           disabled={loading || !canRoute}
         >
@@ -395,6 +428,14 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange 
             : <Text style={styles.goBtnText}>{canRoute ? 'Route →' : 'Pick origin & destination'}</Text>
           }
         </TouchableOpacity>
+        {hasRoute && (
+          <TouchableOpacity
+            style={styles.clearRouteBtn}
+            onPress={handleClear}
+          >
+            <Text style={styles.clearRouteBtnText}>✕ Clear Route</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -465,10 +506,25 @@ const styles = StyleSheet.create({
   chipText:    { color: '#aaa', fontSize: 11, fontWeight: '500' },
   chipTextOn:  { color: '#fff', fontWeight: '700' },
 
-  btnRow: { marginTop: 8 },
-  goBtn:  { backgroundColor: '#4A90D9', paddingVertical: 11, borderRadius: 10, alignItems: 'center' },
+  btnRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center' },
+  goBtn:  { backgroundColor: '#4A90D9', paddingVertical: 11, borderRadius: 10, alignItems: 'center', flex: 1 },
   goBtnOff:  { backgroundColor: '#2a3a5a' },
   goBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  clearRouteBtn: {
+    backgroundColor: '#252545',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3d3d65',
+  },
+  clearRouteBtnText: {
+    color: '#E8C97A',
+    fontWeight: '600',
+    fontSize: 13,
+  },
 
   // Collapsed state
   collapsedBar: {

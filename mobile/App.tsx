@@ -110,6 +110,7 @@ export default function App() {
             loading={loading}
             onAbout={() => navigate('/about')}
             onStateChange={handleStateChange}
+            hasRoute={!!result}
           />
 
           {/* Error banner */}
@@ -121,7 +122,7 @@ export default function App() {
 
           {/* Route info sheet when result is available */}
           {result && !loading && (
-            <RouteInfoSheet result={result} vehicle={vehicle} />
+            <RouteInfoSheet result={result} vehicle={vehicle} onClear={clearRoute} />
           )}
 
           {/* Hint when idle */}

@@ -9,6 +9,7 @@ import {
 interface Props {
   result: CompareResult;
   vehicle: VehicleType;
+  onClear?: () => void;
 }
 
 function fmtTime(seconds: number): string {
@@ -48,7 +49,7 @@ const VERDICT_CONFIG = {
   impossible:      { emoji: '⚠️', label: 'No camera-free path',     sub: 'Every route through this corridor passes a camera.',      color: '#E74C3C' },
 };
 
-export function RouteInfoSheet({ result, vehicle }: Props) {
+export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
   const [expanded, setExpanded] = useState(false);
 
@@ -77,33 +78,51 @@ export function RouteInfoSheet({ result, vehicle }: Props) {
   // ── Collapsed summary bar ──
   if (!expanded) {
     return (
-      <TouchableOpacity style={styles.collapsedBar} onPress={() => setExpanded(true)} activeOpacity={0.8}>
-        <Text style={styles.collapsedVerdict}>{cfg.emoji}</Text>
-        <View style={styles.collapsedInfo}>
-          <Text style={styles.collapsedLabel} numberOfLines={1}>
-            <Text style={{ color: '#4A90D9' }}>🔒 {pr ? fmtTime(pr.duration_seconds) : '—'}</Text>
-            {'  ·  '}
-            <Text style={{ color: '#888' }}>🚗 {fmtTime(sr.duration_seconds)}</Text>
-          </Text>
-          <Text style={styles.collapsedSub} numberOfLines={1}>
-            <Text style={{ color: '#27AE60' }}>{pr ? pr.cameras_avoided : 0} avoided</Text>
-            {'  ·  '}
-            <Text style={{ color: '#E74C3C' }}>
-              {pr ? cameras_in_corridor - pr.cameras_avoided : cameras_in_corridor} unavoidable
+      <View style={styles.collapsedBarWrapper}>
+        <TouchableOpacity style={styles.collapsedBar} onPress={() => setExpanded(true)} activeOpacity={0.8}>
+          <Text style={styles.collapsedVerdict}>{cfg.emoji}</Text>
+          <View style={styles.collapsedInfo}>
+            <Text style={styles.collapsedLabel} numberOfLines={1}>
+              <Text style={{ color: '#4A90D9' }}>🔒 {pr ? fmtTime(pr.duration_seconds) : '—'}</Text>
+              {'  ·  '}
+              <Text style={{ color: '#888' }}>🚗 {fmtTime(sr.duration_seconds)}</Text>
             </Text>
-          </Text>
-        </View>
-        <Text style={styles.collapsedChevron}>▲ Details</Text>
-      </TouchableOpacity>
+            <Text style={styles.collapsedSub} numberOfLines={1}>
+              <Text style={{ color: '#27AE60' }}>{pr ? pr.cameras_avoided : 0} avoided</Text>
+              {'  ·  '}
+              <Text style={{ color: '#E74C3C' }}>
+                {pr ? cameras_in_corridor - pr.cameras_avoided : cameras_in_corridor} unavoidable
+              </Text>
+            </Text>
+          </View>
+          <Text style={styles.collapsedChevron}>▲ Details</Text>
+        </TouchableOpacity>
+        {onClear && (
+          <TouchableOpacity
+            style={styles.sheetMiniClearBtn}
+            onPress={onClear}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.sheetMiniClearText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Collapse button */}
-      <TouchableOpacity style={styles.collapseBtn} onPress={() => setExpanded(false)}>
-        <Text style={styles.collapseBtnText}>▼ Hide details</Text>
-      </TouchableOpacity>
+      {/* Top action row */}
+      <View style={styles.sheetTopRow}>
+        <TouchableOpacity style={styles.collapseBtn} onPress={() => setExpanded(false)}>
+          <Text style={styles.collapseBtnText}>▼ Hide details</Text>
+        </TouchableOpacity>
+        {onClear && (
+          <TouchableOpacity style={styles.sheetClearBtn} onPress={onClear}>
+            <Text style={styles.sheetClearText}>✕ Clear route</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Verdict banner */}
       <View style={[styles.verdictBanner, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
@@ -222,10 +241,16 @@ const styles = StyleSheet.create({
   },
 
   // Collapsed summary bar
+  collapsedBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 10,
+  },
   collapsedBar: {
+    flex: 1,
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#1a1a2eee', borderRadius: 14,
-    margin: 10, padding: 10, gap: 8,
+    padding: 10, gap: 8,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6, elevation: 5,
   },
   collapsedVerdict: { fontSize: 20 },
@@ -233,10 +258,45 @@ const styles = StyleSheet.create({
   collapsedLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
   collapsedSub: { color: '#aaa', fontSize: 11, marginTop: 2 },
   collapsedChevron: { color: '#4A90D9', fontSize: 11, fontWeight: '600' },
+  sheetMiniClearBtn: {
+    backgroundColor: '#1a1a2eee',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginLeft: 6,
+    borderWidth: 1,
+    borderColor: '#333355',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetMiniClearText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
   // Collapse button inside full sheet
-  collapseBtn: { alignItems: 'center', marginBottom: 10 },
+  sheetTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  collapseBtn: { alignItems: 'center' },
   collapseBtnText: { color: '#555', fontSize: 11 },
+  sheetClearBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#252545',
+    borderWidth: 1,
+    borderColor: '#3d3d65',
+  },
+  sheetClearText: {
+    color: '#E8C97A',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
 
   verdictBanner: {
     flexDirection: 'row', alignItems: 'center',
