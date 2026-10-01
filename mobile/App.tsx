@@ -7,6 +7,7 @@ import { SearchPanel, StateKey, STATE_CONFIG } from './src/components/SearchPane
 import { RouteInfoSheet } from './src/components/RouteInfoSheet';
 import { useRoute } from './src/hooks/useRoute';
 import { CameraReportModal } from './src/components/CameraReportModal';
+import { AddToHomeScreen } from './src/components/AddToHomeScreen';
 
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -172,6 +173,7 @@ export default function App() {
         onClose={() => setReportModal(null)}
       />
     )}
+    <AddToHomeScreen />
     <Analytics />
     <SpeedInsights />
   </>

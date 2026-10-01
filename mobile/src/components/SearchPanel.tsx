@@ -35,6 +35,54 @@ export const STATE_CONFIG: Record<StateKey, {
   tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
 };
 
+export interface DemoRoute {
+  id: string;
+  label: string;
+  badge: string;
+  originQ: string;
+  destQ: string;
+  originLat: number;
+  originLon: number;
+  destLat: number;
+  destLon: number;
+}
+
+export const DEMO_ROUTES: DemoRoute[] = [
+  {
+    id: 'oakland-fruitvale',
+    label: 'Oakland → Fruitvale',
+    badge: '🛡️ 303 avoided',
+    originQ: 'Downtown Oakland, CA',
+    destQ: 'Fruitvale, Oakland, CA',
+    originLat: 37.8044,
+    originLon: -122.2711,
+    destLat: 37.7749,
+    destLon: -122.2241,
+  },
+  {
+    id: 'dtla-santa-monica',
+    label: 'DTLA → Santa Monica',
+    badge: '🛡️ 652 avoided',
+    originQ: 'Downtown Los Angeles, CA',
+    destQ: 'Santa Monica, CA',
+    originLat: 34.0522,
+    originLon: -118.2437,
+    destLat: 34.0195,
+    destLon: -118.4912,
+  },
+  {
+    id: 'irvine-newport',
+    label: 'Irvine → Newport Beach',
+    badge: '🛡️ 429 avoided',
+    originQ: 'Irvine, CA',
+    destQ: 'Newport Beach, CA',
+    originLat: 33.6846,
+    originLon: -117.8265,
+    destLat: 33.6189,
+    destLon: -117.9298,
+  },
+];
+
 interface GeoResult {
   place_id?: number | string;
   name?: string;
@@ -287,6 +335,33 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
     setCollapsed(true); // shrink panel so map is visible
   };
 
+  const handleDemoSelect = (demo: DemoRoute) => {
+    setOriginQ(demo.originQ);
+    setDestQ(demo.destQ);
+    setOrigin({
+      display_name: demo.originQ,
+      lat: String(demo.originLat),
+      lon: String(demo.originLon),
+    });
+    setDest({
+      display_name: demo.destQ,
+      lat: String(demo.destLat),
+      lon: String(demo.destLon),
+    });
+    if (selectedState !== 'ca') {
+      handleStateSelect('ca');
+    }
+    onRoute(
+      demo.originLat, demo.originLon,
+      demo.destLat, demo.destLon,
+      radiusM, vehicle,
+    );
+    setCollapsed(true);
+    try {
+      track('demo_route_selected', { route: demo.id, label: demo.label });
+    } catch {}
+  };
+
   const handleClear = () => {
     setOriginQ('');
     setDestQ('');
@@ -384,6 +459,29 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
         zIndex={19}
         bbox={bbox}
       />
+
+      {/* 1-Click Demo Commute Routes */}
+      {!origin && !dest && !hasRoute && (
+        <View style={styles.demoContainer}>
+          <View style={styles.demoHeader}>
+            <Text style={styles.demoTitle}>⚡ 1-Click Demo Commutes</Text>
+            <Text style={styles.demoSubtitle}>Tap to test live routing</Text>
+          </View>
+          <View style={styles.demoRow}>
+            {DEMO_ROUTES.map(demo => (
+              <TouchableOpacity
+                key={demo.id}
+                style={styles.demoChip}
+                onPress={() => handleDemoSelect(demo)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.demoChipLabel} numberOfLines={1}>{demo.label}</Text>
+                <Text style={styles.demoChipBadge}>{demo.badge}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Options toggle */}
       <TouchableOpacity
@@ -528,6 +626,62 @@ const styles = StyleSheet.create({
     color: '#E8C97A',
     fontWeight: '600',
     fontSize: 13,
+  },
+
+  // 1-Click Demo Commutes
+  demoContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: '#121226',
+    borderRadius: 10,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#252545',
+  },
+  demoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  demoTitle: {
+    color: '#E8C97A',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  demoSubtitle: {
+    color: '#777',
+    fontSize: 10,
+  },
+  demoRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  demoChip: {
+    flex: 1,
+    backgroundColor: '#1a1a36',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#333355',
+  },
+  demoChipLabel: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  demoChipBadge: {
+    color: '#2ECC71',
+    fontSize: 9.5,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // Collapsed state
