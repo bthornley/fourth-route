@@ -284,6 +284,10 @@ REGIONS: dict[str, str] = {
     "tx_houston":        "29.4,-95.9,30.2,-94.8",
     "tx_austin_sa":      "29.0,-98.8,30.6,-97.0",
     "tx_rest":           "25.8,-106.7,36.5,-93.5",
+    # Nevada (Las Vegas, Reno, Clark County)
+    "nv_las_vegas":      "35.8,-115.5,36.5,-114.9",
+    "nv_reno":           "39.3,-120.0,39.7,-119.6",
+    "nv_rest":           "35.0,-120.0,42.0,-114.0",
 }
 
 if __name__ == "__main__":
