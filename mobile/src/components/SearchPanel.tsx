@@ -20,7 +20,7 @@ interface Props {
   hasRoute?: boolean;
 }
 
-export type StateKey = 'all' | 'ca' | 'wa' | 'or' | 'tx';
+export type StateKey = 'all' | 'ca' | 'nv' | 'wa' | 'or' | 'tx';
 
 export const STATE_CONFIG: Record<StateKey, {
   label: string;
@@ -30,6 +30,7 @@ export const STATE_CONFIG: Record<StateKey, {
 }> = {
   all: { label: 'All',  flag: '🌎', bbox: '-124.8,25.8,-93.5,49.0',   center: { lng: -110.0, lat: 39.0, zoom: 5 } },
   ca:  { label: 'CA',   flag: '🌅', bbox: '-124.5,32.5,-114.1,42.0',   center: { lng: -119.4, lat: 36.7, zoom: 6 } },
+  nv:  { label: 'NV',   flag: '🎰', bbox: '-120.0,35.0,-114.0,42.0',   center: { lng: -115.17, lat: 36.13, zoom: 11 } },
   wa:  { label: 'WA',   flag: '⚖️', bbox: '-124.8,45.5,-116.9,49.0',   center: { lng: -120.5, lat: 47.5, zoom: 7 } },
   or:  { label: 'OR',   flag: '🏛️', bbox: '-124.6,41.9,-116.5,46.3',   center: { lng: -120.6, lat: 43.8, zoom: 7 } },
   tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },

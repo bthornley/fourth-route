@@ -39,7 +39,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
           <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
-          <Text style={styles.heroSub}>Privacy routing in California · Camera maps across CA, WA, OR & TX</Text>
+          <Text style={styles.heroSub}>Privacy routing in California · Camera maps across CA, NV, WA, OR & TX</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
