@@ -39,7 +39,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
           <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
-          <Text style={styles.heroSub}>Privacy routing in California · Camera maps across CA, NV, WA, OR & TX</Text>
+          <Text style={styles.heroSub}>Privacy routing in CA & NV · Camera maps across CA, NV, WA, OR & TX</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
@@ -70,6 +70,7 @@ export function AboutPage({ navigate }: Props) {
             Fourth Route deliberately expands to states where residents, legislatures, and local governments are actively pushing back against mass ALPR surveillance — making our tool most relevant where the political moment is live.
           </Text>
           {[
+            ['🎰 Nevada', '650+ cameras mapped across Las Vegas, Clark County, and Reno. Real-time camera avoidance routing live for Vegas and CA-NV cross-state corridors.'],
             ['⚖️ Washington', 'Passed SB 6002 requiring a court-issued probable cause warrant for law enforcement to access ALPR data held by private vendors — the strongest ALPR privacy law in the country.'],
             ['🏛️ Oregon', 'State law gives residents the right to sue ALPR vendors directly and limits data retention to 30 days. Lawmakers are considering a full ban.'],
             ['🤠 Texas', '14+ cities and counties have canceled Flock Safety contracts and shut off 900+ cameras after the state blocked ALPR funding. Includes Plano, Kendall County, and others.'],
@@ -125,14 +126,14 @@ export function AboutPage({ navigate }: Props) {
             Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras you actually pass, not just cameras near your origin or destination.
           </Text>
           <Text style={styles.body}>
-            <Text style={styles.highlight}>38,368 cameras</Text> are mapped across California, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
+            <Text style={styles.highlight}>39,019 cameras</Text> are mapped across California, Nevada, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
           </Text>
         </View>
 
         {/* Who it's for */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Who it's for</Text>
-          <Text style={styles.sectionTitle}>Anyone who drives in CA, WA, OR, or TX</Text>
+          <Text style={styles.sectionTitle}>Anyone who drives in CA, NV, WA, OR, or TX</Text>
           {[
             ['🔒 Privacy-conscious drivers', 'Exercising the right to travel without mass surveillance logging every movement'],
             ['⚠️ Domestic violence survivors', 'Abusers with law enforcement contacts or data broker access can track movements through ALPR systems — avoidance routing is a safety tool'],

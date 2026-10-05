@@ -82,6 +82,17 @@ export const DEMO_ROUTES: DemoRoute[] = [
     destLat: 33.6189,
     destLon: -117.9298,
   },
+  {
+    id: 'vegas-strip-fremont',
+    label: 'Vegas Strip → Fremont',
+    badge: '🛡️ Avoid Cameras',
+    originQ: 'Las Vegas Strip, NV',
+    destQ: 'Fremont Street, Las Vegas, NV',
+    originLat: 36.1147,
+    originLon: -115.1728,
+    destLat: 36.1699,
+    destLon: -115.1438,
+  },
 ];
 
 interface GeoResult {
@@ -411,10 +422,10 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
       </View>
 
       {/* Region routing availability notice */}
-      {selectedState !== 'ca' && (
+      {selectedState !== 'ca' && selectedState !== 'nv' && (
         <View style={styles.stateNotice}>
           <Text style={styles.stateNoticeText}>
-            ℹ️ Camera data is live · Privacy routing is currently enabled in California only
+            ℹ️ Camera data is live · Privacy routing is currently enabled in California & Nevada
           </Text>
         </View>
       )}
