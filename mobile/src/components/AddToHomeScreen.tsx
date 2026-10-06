@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { track } from '@vercel/analytics';
 
 export function AddToHomeScreen() {
@@ -94,7 +94,10 @@ export function AddToHomeScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>📲</Text>
+          <Image
+            source={{ uri: '/pwa/apple-touch-icon/apple-touch-icon-180.png' }}
+            style={styles.iconImage}
+          />
         </View>
 
         <View style={styles.textContainer}>
@@ -158,6 +161,13 @@ const styles = StyleSheet.create({
     marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a3a60',
   },
   icon: {
     fontSize: 22,
