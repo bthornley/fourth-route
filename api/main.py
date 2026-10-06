@@ -265,6 +265,48 @@ def get_camera(camera_id: int, db=Depends(get_db)):
     return row
 
 
+def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: str, notes: str):
+    """Best-effort notification via Webhook, Resend, or SMTP if configured."""
+    log.info(f"🚨 NEW CAMERA REPORTED [ID #{report_id}]: ({lat}, {lon}) operator={operator}")
+    
+    # 1. Discord/Slack/Generic Webhook
+    webhook_url = os.getenv("ALERT_WEBHOOK_URL")
+    if webhook_url:
+        try:
+            payload = {
+                "text": f"🚨 *New ALPR Camera Reported* (ID #{report_id})\n• Location: {lat:.5f}, {lon:.5f}\n• Operator: {operator or 'Unknown'}\n• Notes: {notes or 'None'}\n• Inspect: https://fourthroute.org?lat={lat}&lon={lon}"
+            }
+            requests.post(webhook_url, json=payload, timeout=5)
+        except Exception as e:
+            log.warning(f"Failed to post alert webhook: {e}")
+
+    # 2. Resend API if configured
+    resend_key = os.getenv("RESEND_API_KEY")
+    alert_email = os.getenv("ALERT_EMAIL", "bthornley@gmail.com")
+    if resend_key:
+        try:
+            requests.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                json={
+                    "from": "Fourth Route Alerts <alerts@fourthroute.org>",
+                    "to": [alert_email],
+                    "subject": f"🚨 New Camera Reported: ({lat:.4f}, {lon:.4f})",
+                    "text": (
+                        f"A user reported a new surveillance camera:\n\n"
+                        f"ID: #{report_id}\n"
+                        f"Coordinates: {lat}, {lon}\n"
+                        f"Operator: {operator or 'Not specified'}\n"
+                        f"Notes: {notes or 'None'}\n\n"
+                        f"Map link: https://fourthroute.org?lat={lat}&lon={lon}"
+                    )
+                },
+                timeout=5
+            )
+        except Exception as e:
+            log.warning(f"Failed to send email via Resend: {e}")
+
+
 @app.post("/cameras/report", tags=["Crowdsourcing"], status_code=201)
 def report_camera(report: CameraReport, db=Depends(get_db)):
     """Submit a new user-reported camera sighting (goes into moderation queue)."""
@@ -279,7 +321,89 @@ def report_camera(report: CameraReport, db=Depends(get_db)):
         )
         new_id = cur.fetchone()["id"]
     db.commit()
+
+    _notify_new_camera_report(new_id, report.lat, report.lon, report.operator, report.notes)
+
     return {"id": new_id, "status": "pending", "message": "Report received, thank you!"}
+
+
+@app.get("/admin/reports", tags=["Admin"])
+def get_reports(
+    status: str = Query(default="all", description="all, pending, approved, or rejected"),
+    admin_token: str = Query(default=None),
+    db=Depends(get_db)
+):
+    """View crowdsourced camera reports for moderation."""
+    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+    if admin_token != expected_token:
+        raise HTTPException(status_code=401, detail="Unauthorized admin token")
+
+    query = """
+        SELECT id, lat, lon, operator, notes, image_url, status, submitted_at
+        FROM camera_reports
+    """
+    params = []
+    if status != "all":
+        query += " WHERE status = %s"
+        params.append(status)
+    query += " ORDER BY submitted_at DESC LIMIT 100"
+
+    with db.cursor() as cur:
+        cur.execute(query, params)
+        reports = cur.fetchall()
+
+        cur.execute("SELECT COUNT(*) AS pending_count FROM camera_reports WHERE status = 'pending'")
+        pending_cnt = cur.fetchone()["pending_count"]
+
+    return {
+        "pending_count": pending_cnt,
+        "total_returned": len(reports),
+        "reports": reports
+    }
+
+
+@app.post("/admin/reports/{report_id}/approve", tags=["Admin"])
+def approve_report(report_id: int, admin_token: str = Query(default=None), db=Depends(get_db)):
+    """Approve a report: add to cameras table and mark approved."""
+    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+    if admin_token != expected_token:
+        raise HTTPException(status_code=401, detail="Unauthorized admin token")
+
+    with db.cursor() as cur:
+        cur.execute("SELECT * FROM camera_reports WHERE id = %s", (report_id,))
+        rep = cur.fetchone()
+        if not rep:
+            raise HTTPException(status_code=404, detail="Report not found")
+
+        # Insert into cameras table
+        cur.execute(
+            """
+            INSERT INTO cameras (geom, source, operator, notes, confidence, verified_at)
+            VALUES (ST_SetSRID(ST_Point(%s, %s), 4326)::geography, 'user', %s, %s, 1.0, now())
+            RETURNING id
+            """,
+            (rep["lon"], rep["lat"], rep.get("operator") or "User Reported", rep.get("notes")),
+        )
+        cam_id = cur.fetchone()["id"]
+
+        cur.execute("UPDATE camera_reports SET status = 'approved' WHERE id = %s", (report_id,))
+    db.commit()
+    return {"message": "Report approved and added to active camera network", "camera_id": cam_id}
+
+
+@app.post("/admin/reports/{report_id}/reject", tags=["Admin"])
+def reject_report(report_id: int, admin_token: str = Query(default=None), db=Depends(get_db)):
+    """Reject a report."""
+    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+    if admin_token != expected_token:
+        raise HTTPException(status_code=401, detail="Unauthorized admin token")
+
+    with db.cursor() as cur:
+        cur.execute("UPDATE camera_reports SET status = 'rejected' WHERE id = %s RETURNING id", (report_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Report not found")
+    db.commit()
+    return {"message": "Report rejected"}
 
 
 @app.get("/sync/status", tags=["Admin"])
