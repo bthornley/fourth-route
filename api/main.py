@@ -339,14 +339,14 @@ def get_reports(
         raise HTTPException(status_code=401, detail="Unauthorized admin token")
 
     query = """
-        SELECT id, lat, lon, operator, notes, image_url, status, submitted_at
+        SELECT id, lat, lon, operator, notes, status, created_at
         FROM camera_reports
     """
     params = []
     if status != "all":
         query += " WHERE status = %s"
         params.append(status)
-    query += " ORDER BY submitted_at DESC LIMIT 100"
+    query += " ORDER BY created_at DESC LIMIT 100"
 
     with db.cursor() as cur:
         cur.execute(query, params)
