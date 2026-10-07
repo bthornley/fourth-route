@@ -10,20 +10,61 @@ export function AddToHomeScreen() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check if already running in standalone mode (PWA installed)
+    // 1. Check if already running in standalone mode (PWA installed)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true ||
       document.referrer.includes('android-app://');
 
-    if (isStandalone) return;
+    if (isStandalone) {
+      try {
+        localStorage.setItem('fourth_route_pwa_installed', 'true');
+      } catch {}
+      return;
+    }
 
-    // Check if dismissed in this session
+    // 2. Check if already marked as installed in localStorage (from previous install/launch)
     try {
+      if (localStorage.getItem('fourth_route_pwa_installed') === 'true') {
+        return;
+      }
+    } catch {}
+
+    // 3. Check if user dismissed it recently (14-day snooze) or in this session
+    try {
+      const dismissedUntil = localStorage.getItem('fourth_route_pwa_dismissed_until');
+      if (dismissedUntil && Date.now() < Number(dismissedUntil)) {
+        return;
+      }
       if (sessionStorage.getItem('fourth_route_pwa_dismissed') === '1') {
         return;
       }
     } catch {}
+
+    // 4. On Chromium browsers, check getInstalledRelatedApps()
+    if ('getInstalledRelatedApps' in navigator) {
+      (navigator as any)
+        .getInstalledRelatedApps?.()
+        .then((apps: any[]) => {
+          if (apps && apps.length > 0) {
+            try {
+              localStorage.setItem('fourth_route_pwa_installed', 'true');
+            } catch {}
+            setVisible(false);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // 5. Listen for the native browser 'appinstalled' event (Chrome/Edge/Android)
+    const handleAppInstalled = () => {
+      try {
+        localStorage.setItem('fourth_route_pwa_installed', 'true');
+        track('pwa_installed', { method: 'browser_native' });
+      } catch {}
+      setVisible(false);
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     // Only show on mobile / small screen devices
     const isMobileDevice =
@@ -54,6 +95,11 @@ export function AddToHomeScreen() {
 
     // Show banner after brief delay so it doesn't jar the user immediately
     const timer = setTimeout(() => {
+      // Re-verify in case installation occurred during the delay
+      try {
+        if (localStorage.getItem('fourth_route_pwa_installed') === 'true') return;
+      } catch {}
+
       setVisible(true);
       try {
         track('pwa_banner_shown', { os: isIOS ? 'ios' : isAndroid ? 'android' : 'other' });
@@ -63,6 +109,7 @@ export function AddToHomeScreen() {
     return () => {
       clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -70,6 +117,8 @@ export function AddToHomeScreen() {
     setVisible(false);
     try {
       sessionStorage.setItem('fourth_route_pwa_dismissed', '1');
+      // Snooze for 14 days in localStorage so user isn't spammed every session
+      localStorage.setItem('fourth_route_pwa_dismissed_until', String(Date.now() + 14 * 24 * 60 * 60 * 1000));
       track('pwa_banner_dismissed');
     } catch {}
   };
@@ -80,7 +129,8 @@ export function AddToHomeScreen() {
       const choiceResult = await deferredPrompt.userChoice;
       if (choiceResult.outcome === 'accepted') {
         try {
-          track('pwa_banner_installed');
+          localStorage.setItem('fourth_route_pwa_installed', 'true');
+          track('pwa_installed', { method: 'in_app_banner', os: 'android' });
         } catch {}
       }
       setDeferredPrompt(null);

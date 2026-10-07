@@ -81,6 +81,28 @@ export default function App() {
     setReportModal({ lat, lon });
   }, []);
 
+  // Detect standalone PWA launches from Home Screen & mark installed
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes('android-app://');
+
+    if (isStandalone) {
+      try {
+        localStorage.setItem('fourth_route_pwa_installed', 'true');
+        const hasLoggedFirst = localStorage.getItem('fourth_route_pwa_first_standalone');
+        if (!hasLoggedFirst) {
+          localStorage.setItem('fourth_route_pwa_first_standalone', 'true');
+          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+          track('pwa_installed', { method: 'first_standalone_launch', os: isIOS ? 'ios' : 'android' });
+        }
+        track('pwa_session_standalone');
+      } catch {}
+    }
+  }, []);
+
   // Page routing
   if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/privacy') return <><PrivacyPolicy navigate={navigate} /><Analytics /><SpeedInsights /></>;
