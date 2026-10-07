@@ -10,11 +10,19 @@ import json
 import subprocess
 import psycopg2
 import psycopg2.extras
+from dotenv import load_dotenv
 
-DB_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres.wftprktyohywftvnlrfy:wc3BqYhqGSY0PnB4@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
-)
+# Load local root .env or .env.local if present
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+
+DB_URL = os.getenv("DATABASE_URL")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+
+if not DB_URL:
+    print("❌ Error: DATABASE_URL is not set in environment or .env file.")
+    sys.exit(1)
+
 NOTIFIED_FILE = os.path.expanduser("~/.gemini/antigravity/camera_reports_notified.json")
 
 def load_notified():
@@ -102,10 +110,10 @@ Inspect Location:
 • Google Maps: {gmaps_link}
 
 To approve this camera and add it directly to the active routing network:
-curl -X POST "https://fourth-route-production.up.railway.app/admin/reports/{rep_id}/approve?admin_token=fourthroute-admin-2026"
+curl -X POST "https://fourth-route-production.up.railway.app/admin/reports/{rep_id}/approve" -H "X-Admin-Token: {ADMIN_TOKEN}"
 
 To reject:
-curl -X POST "https://fourth-route-production.up.railway.app/admin/reports/{rep_id}/reject?admin_token=fourthroute-admin-2026"
+curl -X POST "https://fourth-route-production.up.railway.app/admin/reports/{rep_id}/reject" -H "X-Admin-Token: {ADMIN_TOKEN}"
 
 — Fourth Route Queue Monitor
 """

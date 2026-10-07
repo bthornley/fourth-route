@@ -9,9 +9,10 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Generator
 
+import hmac
 import psycopg2
 import psycopg2.extras
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -307,8 +308,33 @@ def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: 
             log.warning(f"Failed to send email via Resend: {e}")
 
 
+def verify_admin_token(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    authorization: str | None = Header(default=None),
+    admin_token: str | None = Query(default=None),
+) -> bool:
+    """
+    Validate admin credentials via Header (X-Admin-Token or Authorization: Bearer <token>)
+    or URL query parameter (for backwards compatibility).
+    """
+    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+
+    token = x_admin_token
+    if not token and authorization:
+        if authorization.startswith("Bearer "):
+            token = authorization[7:].strip()
+        else:
+            token = authorization.strip()
+    if not token and admin_token:
+        token = admin_token
+
+    if not token or not hmac.compare_digest(token, expected_token):
+        raise HTTPException(status_code=401, detail="Unauthorized admin token")
+    return True
+
+
 @app.post("/cameras/report", tags=["Crowdsourcing"], status_code=201)
-def report_camera(report: CameraReport, db=Depends(get_db)):
+def report_camera(report: CameraReport, background_tasks: BackgroundTasks, db=Depends(get_db)):
     """Submit a new user-reported camera sighting (goes into moderation queue)."""
     with db.cursor() as cur:
         cur.execute(
@@ -322,7 +348,11 @@ def report_camera(report: CameraReport, db=Depends(get_db)):
         new_id = cur.fetchone()["id"]
     db.commit()
 
-    _notify_new_camera_report(new_id, report.lat, report.lon, report.operator, report.notes)
+    # Dispatch email / webhook notifications asynchronously without blocking client response
+    background_tasks.add_task(
+        _notify_new_camera_report,
+        new_id, report.lat, report.lon, report.operator, report.notes
+    )
 
     return {"id": new_id, "status": "pending", "message": "Report received, thank you!"}
 
@@ -330,14 +360,10 @@ def report_camera(report: CameraReport, db=Depends(get_db)):
 @app.get("/admin/reports", tags=["Admin"])
 def get_reports(
     status: str = Query(default="all", description="all, pending, approved, or rejected"),
-    admin_token: str = Query(default=None),
+    _auth: bool = Depends(verify_admin_token),
     db=Depends(get_db)
 ):
     """View crowdsourced camera reports for moderation."""
-    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
-    if admin_token != expected_token:
-        raise HTTPException(status_code=401, detail="Unauthorized admin token")
-
     query = """
         SELECT id, lat, lon, operator, notes, status, created_at
         FROM camera_reports
@@ -363,12 +389,8 @@ def get_reports(
 
 
 @app.post("/admin/reports/{report_id}/approve", tags=["Admin"])
-def approve_report(report_id: int, admin_token: str = Query(default=None), db=Depends(get_db)):
+def approve_report(report_id: int, _auth: bool = Depends(verify_admin_token), db=Depends(get_db)):
     """Approve a report: add to cameras table and mark approved."""
-    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
-    if admin_token != expected_token:
-        raise HTTPException(status_code=401, detail="Unauthorized admin token")
-
     with db.cursor() as cur:
         cur.execute("SELECT * FROM camera_reports WHERE id = %s", (report_id,))
         rep = cur.fetchone()
@@ -392,12 +414,8 @@ def approve_report(report_id: int, admin_token: str = Query(default=None), db=De
 
 
 @app.post("/admin/reports/{report_id}/reject", tags=["Admin"])
-def reject_report(report_id: int, admin_token: str = Query(default=None), db=Depends(get_db)):
+def reject_report(report_id: int, _auth: bool = Depends(verify_admin_token), db=Depends(get_db)):
     """Reject a report."""
-    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
-    if admin_token != expected_token:
-        raise HTTPException(status_code=401, detail="Unauthorized admin token")
-
     with db.cursor() as cur:
         cur.execute("UPDATE camera_reports SET status = 'rejected' WHERE id = %s RETURNING id", (report_id,))
         if not cur.fetchone():

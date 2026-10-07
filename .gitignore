@@ -37,3 +37,7 @@ postgres_data/
 .env*
 valhalla/ca_build/
 valhalla/*.tar*
+valhalla/southwest_build/
+valhalla/multi_state_build/
+scripts/connect_instagram.py
+scripts/instagram_publisher.py
