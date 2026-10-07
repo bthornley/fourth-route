@@ -243,11 +243,11 @@ function useGeocoder(query: string, bbox: string): { results: GeoResult[]; loadi
 
 // ── Search input with dropdown ─────────────────────────────────────────────
 function LocationInput({
-  placeholder, color, value, onChange, onSelect, onClearInput, zIndex, bbox,
+  placeholder, color, value, onChange, onSelect, onClearInput, zIndex, bbox, rightAction,
 }: {
   placeholder: string; color: string; value: string;
   onChange: (v: string) => void; onSelect: (r: GeoResult) => void; onClearInput?: () => void; zIndex: number;
-  bbox: string;
+  bbox: string; rightAction?: React.ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
   const { results, loading } = useGeocoder(value, bbox);
@@ -269,6 +269,7 @@ function LocationInput({
         {loading && (
           <ActivityIndicator size="small" color="#E8C97A" style={{ marginRight: 6 }} />
         )}
+        {value.length === 0 && rightAction}
         {value.length > 0 && (
           <TouchableOpacity
             onPress={() => {
@@ -325,6 +326,61 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
   const [vehicle, setVehicle] = useState<VehicleType>('gas_avg');
   const [showOpts, setShowOpts] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  const handleUseCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocError('Geolocation is not supported by your browser');
+      setTimeout(() => setLocError(null), 4000);
+      return;
+    }
+    setLocLoading(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let placeName = 'Current Location';
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+            { headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.org)' } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const fp = formatPlace(data);
+            placeName = fp.main || fp.full || 'Current Location';
+          }
+        } catch {
+          // reverse geocoding fallback
+        }
+
+        setOriginQ(placeName);
+        setOrigin({
+          display_name: placeName,
+          lat: String(latitude),
+          lon: String(longitude),
+        });
+        setLocLoading(false);
+        try {
+          track('use_current_location_success', { lat: latitude, lon: longitude });
+        } catch {}
+      },
+      (err) => {
+        setLocLoading(false);
+        let msg = 'Could not get location';
+        if (err.code === 1) msg = 'Location permission denied. Please allow access in browser.';
+        else if (err.code === 2) msg = 'Location unavailable';
+        else if (err.code === 3) msg = 'Location request timed out';
+        setLocError(msg);
+        setTimeout(() => setLocError(null), 5000);
+        try {
+          track('use_current_location_error', { code: err.code, message: err.message });
+        } catch {}
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const bbox = STATE_CONFIG[selectedState].bbox;
   const handleStateSelect = (s: StateKey) => {
@@ -450,6 +506,20 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
         }}
         zIndex={20}
         bbox={bbox}
+        rightAction={
+          <TouchableOpacity
+            style={styles.gpsBtnInline}
+            onPress={handleUseCurrentLocation}
+            disabled={locLoading}
+            activeOpacity={0.7}
+          >
+            {locLoading ? (
+              <ActivityIndicator size="small" color="#4A90D9" />
+            ) : (
+              <Text style={styles.gpsBtnInlineText}>📍 Current</Text>
+            )}
+          </TouchableOpacity>
+        }
       />
       <View style={{ height: 6, zIndex: 1 }} />
       <LocationInput
@@ -471,6 +541,31 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
         zIndex={19}
         bbox={bbox}
       />
+
+      {/* 1-Tap Use My Current Location Pill */}
+      {!origin && !hasRoute && (
+        <TouchableOpacity
+          style={styles.currentLocPill}
+          onPress={handleUseCurrentLocation}
+          disabled={locLoading}
+          activeOpacity={0.7}
+        >
+          {locLoading ? (
+            <ActivityIndicator size="small" color="#4A90D9" />
+          ) : (
+            <>
+              <Text style={styles.currentLocPillIcon}>📍</Text>
+              <Text style={styles.currentLocPillText}>Use My Current Location as Start</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {locError && (
+        <View style={styles.locErrorBox}>
+          <Text style={styles.locErrorText}>⚠️ {locError}</Text>
+        </View>
+      )}
 
       {/* 1-Click Demo Commute Routes */}
       {!origin && !dest && !hasRoute && (
@@ -593,6 +688,56 @@ const styles = StyleSheet.create({
   dot:    { fontSize: 9, marginRight: 8 },
   input:  { flex: 1, color: '#fff', fontSize: 13, paddingVertical: 9, outlineStyle: 'none' } as any,
   clearX: { color: '#555', fontSize: 12, paddingLeft: 6 },
+  gpsBtnInline: {
+    backgroundColor: '#1b2a4a',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2e4978',
+    marginLeft: 6,
+  },
+  gpsBtnInlineText: {
+    color: '#70A5F9',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  currentLocPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1b2a4a',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#2f4b7c',
+    gap: 6,
+  },
+  currentLocPillIcon: {
+    fontSize: 13,
+  },
+  currentLocPillText: {
+    color: '#70A5F9',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  locErrorBox: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#3d1a1a',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#7a2e2e',
+  },
+  locErrorText: {
+    color: '#ff8888',
+    fontSize: 11,
+    textAlign: 'center',
+  },
 
   dropdown: {
     position: 'absolute' as any, top: '100%', left: 0, right: 0,
