@@ -194,9 +194,10 @@ def delete_stale_osm_cameras(conn, live_osm_ids: set[int], bbox: str | None = No
                 WHERE source = 'osm'
                   AND osm_id IS NOT NULL
                   AND osm_id != ALL(%s)
-                  AND geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+                  AND geom::geometry && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+                  AND ST_Within(geom::geometry, ST_MakeEnvelope(%s, %s, %s, %s, 4326))
                 """,
-                (list(live_osm_ids), west, south, east, north),
+                (list(live_osm_ids), west, south, east, north, west, south, east, north),
             )
         else:
             # Global sync — safe to delete anything not in results
