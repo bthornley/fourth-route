@@ -18,9 +18,11 @@ interface Props {
   onAbout: () => void;
   onStateChange: (state: StateKey) => void;
   hasRoute?: boolean;
+  collapsed?: boolean;
+  onToggleCollapsed?: (collapsed: boolean) => void;
 }
 
-export type StateKey = 'all' | 'ca' | 'nv' | 'wa' | 'or' | 'tx';
+export type StateKey = 'all' | 'ca' | 'nv' | 'az' | 'wa' | 'or' | 'tx';
 
 export const STATE_CONFIG: Record<StateKey, {
   label: string;
@@ -31,6 +33,7 @@ export const STATE_CONFIG: Record<StateKey, {
   all: { label: 'All',  flag: '🌎', bbox: '-124.8,25.8,-93.5,49.0',   center: { lng: -110.0, lat: 39.0, zoom: 5 } },
   ca:  { label: 'CA',   flag: '🌅', bbox: '-124.5,32.5,-114.1,42.0',   center: { lng: -119.4, lat: 36.7, zoom: 6 } },
   nv:  { label: 'NV',   flag: '🎰', bbox: '-120.0,35.0,-114.0,42.0',   center: { lng: -115.17, lat: 36.13, zoom: 11 } },
+  az:  { label: 'AZ',   flag: '🌵', bbox: '-114.81,31.33,-109.04,37.0', center: { lng: -112.074, lat: 33.4484, zoom: 10 } },
   wa:  { label: 'WA',   flag: '⚖️', bbox: '-124.8,45.5,-116.9,49.0',   center: { lng: -120.5, lat: 47.5, zoom: 7 } },
   or:  { label: 'OR',   flag: '🏛️', bbox: '-124.6,41.9,-116.5,46.3',   center: { lng: -120.6, lat: 43.8, zoom: 7 } },
   tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
@@ -316,7 +319,10 @@ function LocationInput({
 }
 
 // ── Main panel ─────────────────────────────────────────────────────────────
-export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange, hasRoute }: Props) {
+export function SearchPanel({
+  onRoute, onClear, loading, onAbout, onStateChange, hasRoute,
+  collapsed: controlledCollapsed, onToggleCollapsed,
+}: Props) {
   const [selectedState, setSelectedState] = useState<StateKey>('ca');
   const [originQ, setOriginQ] = useState('');
   const [destQ,   setDestQ]   = useState('');
@@ -325,9 +331,15 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
   const [radiusM, setRadiusM] = useState(120);
   const [vehicle, setVehicle] = useState<VehicleType>('gas_avg');
   const [showOpts, setShowOpts] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
+
+  const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+  const setCollapsed = (val: boolean) => {
+    onToggleCollapsed?.(val);
+    setInternalCollapsed(val);
+  };
 
   const handleUseCurrentLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -440,26 +452,68 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
     onClear();
   };
 
-  // ── Collapsed summary bar ──
+  // ── Collapsed bar ──
   if (collapsed) {
+    if (hasRoute || (origin && dest)) {
+      return (
+        <View style={styles.collapsedBar}>
+          <TouchableOpacity
+            style={styles.collapsedBarTouchable}
+            onPress={() => setCollapsed(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.collapsedText} numberOfLines={1}>
+              {shortLabel(origin)} → {shortLabel(dest)}
+            </Text>
+            <Text style={styles.collapsedExpandText}>Edit ▲</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClear} style={styles.collapsedClear}>
+            <Text style={styles.collapsedClearText}>✕ Clear</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Browsing the map without an active route
     return (
-      <View style={styles.collapsedBar}>
-        <Text style={styles.collapsedText} numberOfLines={1}>
-          {shortLabel(origin)} → {shortLabel(dest)}
-        </Text>
-        <TouchableOpacity onPress={handleClear} style={styles.collapsedClear}>
-          <Text style={styles.collapsedClearText}>✕ Clear</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.collapsedBrowseBar}
+        onPress={() => {
+          setCollapsed(false);
+          try { track('expand_search_panel'); } catch {}
+        }}
+        activeOpacity={0.85}
+      >
+        <View style={styles.collapsedBrowseLeft}>
+          <Text style={styles.collapsedBrowseSearchIcon}>🔍</Text>
+          <Text style={styles.collapsedBrowseTitle}>Search & Plan Route</Text>
+        </View>
+        <View style={styles.collapsedBrowseRight}>
+          <Text style={styles.collapsedBrowseBadge}>41k+ Cameras</Text>
+          <Text style={styles.collapsedBrowseChevron}>▲</Text>
+        </View>
+      </TouchableOpacity>
     );
   }
 
   // ── Full panel ──
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onAbout} activeOpacity={0.7}>
-        <Text style={styles.title}>⚖️ Fourth Route</Text>
-      </TouchableOpacity>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={onAbout} activeOpacity={0.7} style={styles.headerTitleWrap}>
+          <Text style={styles.title}>⚖️ Fourth Route</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.browseMapBtn}
+          onPress={() => {
+            setCollapsed(true);
+            try { track('browse_map_collapsed'); } catch {}
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.browseMapBtnText}>🗺️ Browse Map ▼</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.tagline}>Navigate within your 4th Amendment rights</Text>
 
       {/* State selector chips */}
@@ -646,6 +700,18 @@ export function SearchPanel({ onRoute, onClear, loading, onAbout, onStateChange,
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Minimize / Browse Map Link */}
+      <TouchableOpacity
+        style={styles.bottomBrowseLink}
+        onPress={() => {
+          setCollapsed(true);
+          try { track('browse_map_collapsed'); } catch {}
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.bottomBrowseLinkText}>🗺️ Minimize to browse map</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -656,9 +722,43 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 12, margin: 10,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
-  title:    { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4, letterSpacing: 0.3 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  headerTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  browseMapBtn: {
+    backgroundColor: '#1b2a4a',
+    borderWidth: 1,
+    borderColor: '#34558b',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  browseMapBtnText: {
+    color: '#70A5F9',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bottomBrowseLink: {
+    alignSelf: 'center',
+    marginTop: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  bottomBrowseLinkText: {
+    color: '#70A5F9',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  title:    { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
   tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 6, letterSpacing: 0.2 },
-  stateRow: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginBottom: 8 },
+  stateRow: { flexDirection: 'row', justifyContent: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 8 },
   stateChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#2a2a4a', backgroundColor: '#111127' },
   stateChipActive: { borderColor: '#E8C97A', backgroundColor: '#E8C97A22' },
   stateChipText: { color: '#555', fontSize: 10, fontWeight: '500' },
@@ -843,12 +943,101 @@ const styles = StyleSheet.create({
 
   // Collapsed state
   collapsedBar: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1a1a2ecc' as any,
-    borderRadius: 12, margin: 10, padding: 10,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2eee' as any,
+    borderRadius: 12,
+    margin: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
   },
-  collapsedText:      { flex: 1, color: '#ccc', fontSize: 12 },
-  collapsedClear:     { paddingLeft: 10 },
-  collapsedClearText: { color: '#4A90D9', fontSize: 12, fontWeight: '600' },
+  collapsedBarTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 8,
+  },
+  collapsedText: {
+    color: '#fff',
+    fontSize: 12.5,
+    fontWeight: '600',
+    flex: 1,
+  },
+  collapsedExpandText: {
+    color: '#E8C97A',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  collapsedClear: {
+    paddingLeft: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: '#333355',
+  },
+  collapsedClearText: {
+    color: '#aaa',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Floating Browse Bar when collapsed without route
+  collapsedBrowseBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1a2eee' as any,
+    borderRadius: 12,
+    margin: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: '#3a5488',
+  },
+  collapsedBrowseLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  collapsedBrowseSearchIcon: {
+    fontSize: 14,
+  },
+  collapsedBrowseTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  collapsedBrowseRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  collapsedBrowseBadge: {
+    backgroundColor: '#27ae6022',
+    color: '#2ecc71',
+    borderColor: '#27ae6066',
+    borderWidth: 1,
+    borderRadius: 6,
+    fontSize: 10.5,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden' as any,
+  },
+  collapsedBrowseChevron: {
+    color: '#70A5F9',
+    fontSize: 12,
+    fontWeight: '800',
+  },
 });

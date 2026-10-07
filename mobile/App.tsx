@@ -71,6 +71,7 @@ export default function App() {
 
   const [reportModal, setReportModal] = useState<{ lat: number; lon: number } | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; zoom: number } | undefined>(undefined);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const handleStateChange = useCallback((s: StateKey) => {
     setFlyTo({ ...STATE_CONFIG[s].center });
@@ -110,12 +111,20 @@ export default function App() {
         <View style={styles.overlay}>
           {/* Search panel at top */}
           <SearchPanel
-            onRoute={requestRoute}
-            onClear={clearRoute}
+            onRoute={(...args) => {
+              setPanelCollapsed(true);
+              requestRoute(...args);
+            }}
+            onClear={() => {
+              setPanelCollapsed(false);
+              clearRoute();
+            }}
             loading={loading}
             onAbout={() => navigate('/about')}
             onStateChange={handleStateChange}
             hasRoute={!!result}
+            collapsed={panelCollapsed}
+            onToggleCollapsed={setPanelCollapsed}
           />
 
           {/* Error banner */}
@@ -130,8 +139,8 @@ export default function App() {
             <RouteInfoSheet result={result} vehicle={vehicle} onClear={clearRoute} />
           )}
 
-          {/* Hint when idle */}
-          {!result && !loading && !error && (
+          {/* Hint when idle and search panel expanded */}
+          {!result && !loading && !error && !panelCollapsed && (
             <View style={styles.hint}>
               <Text style={styles.hintText}>
                 Pick an origin + destination above, then tap Route →

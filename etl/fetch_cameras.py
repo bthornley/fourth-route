@@ -288,6 +288,8 @@ REGIONS: dict[str, str] = {
     "nv_las_vegas":      "35.8,-115.5,36.5,-114.9",
     "nv_reno":           "39.3,-120.0,39.7,-119.6",
     "nv_rest":           "35.0,-120.0,42.0,-114.0",
+    # Arizona (Phoenix, Scottsdale, Mesa, Tempe, Tucson, statewide)
+    "az_all":            "31.33,-114.81,37.0,-109.04",
 }
 
 if __name__ == "__main__":

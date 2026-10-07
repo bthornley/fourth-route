@@ -71,6 +71,7 @@ export function AboutPage({ navigate }: Props) {
           </Text>
           {[
             ['🎰 Nevada', '650+ cameras mapped across Las Vegas, Clark County, and Reno. Real-time camera avoidance routing live for Vegas and CA-NV cross-state corridors.'],
+            ['🌵 Arizona', '2,700+ cameras mapped statewide across Phoenix metro, Scottsdale, Mesa, Tempe, and Tucson where municipal Flock networks are under heightened community scrutiny.'],
             ['⚖️ Washington', 'Passed SB 6002 requiring a court-issued probable cause warrant for law enforcement to access ALPR data held by private vendors — the strongest ALPR privacy law in the country.'],
             ['🏛️ Oregon', 'State law gives residents the right to sue ALPR vendors directly and limits data retention to 30 days. Lawmakers are considering a full ban.'],
             ['🤠 Texas', '14+ cities and counties have canceled Flock Safety contracts and shut off 900+ cameras after the state blocked ALPR funding. Includes Plano, Kendall County, and others.'],
@@ -126,14 +127,14 @@ export function AboutPage({ navigate }: Props) {
             Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras you actually pass, not just cameras near your origin or destination.
           </Text>
           <Text style={styles.body}>
-            <Text style={styles.highlight}>39,019 cameras</Text> are mapped across California, Nevada, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
+            <Text style={styles.highlight}>41,122 cameras</Text> are mapped across California, Nevada, Arizona, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
           </Text>
         </View>
 
         {/* Who it's for */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Who it's for</Text>
-          <Text style={styles.sectionTitle}>Anyone who drives in CA, NV, WA, OR, or TX</Text>
+          <Text style={styles.sectionTitle}>Anyone who drives in CA, NV, AZ, WA, OR, or TX</Text>
           {[
             ['🔒 Privacy-conscious drivers', 'Exercising the right to travel without mass surveillance logging every movement'],
             ['⚠️ Domestic violence survivors', 'Abusers with law enforcement contacts or data broker access can track movements through ALPR systems — avoidance routing is a safety tool'],
