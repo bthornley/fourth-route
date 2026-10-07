@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { CompareResult } from '../services/api';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { track } from '@vercel/analytics';
+import { CompareResult, Maneuver, decodePolyline } from '../services/api';
 import {
   VehicleType, VEHICLE_PROFILES,
   calcFuelSavings, annualiseSavings,
@@ -28,6 +29,21 @@ function fmtDollars(n: number): string {
   return `$${n.toFixed(3)}`;
 }
 
+function getManeuverIcon(type: number): string {
+  switch (type) {
+    case 1: case 2: case 3: return '🚗';
+    case 7: case 8: return '↖️';
+    case 9: case 15: return '⬅️';
+    case 10: case 16: return '➡️';
+    case 11: case 12: return '↗️';
+    case 13: return '🔄';
+    case 4: case 5: case 6: return '🏁';
+    case 17: case 18: return '🛣️';
+    case 24: return '🔄';
+    default: return '⬆️';
+  }
+}
+
 type Verdict = 'strictly_better' | 'free_win' | 'time_only' | 'real_overhead' | 'impossible';
 
 function getVerdict(pr: CompareResult['privacy_route'], oh: CompareResult['overhead']): Verdict {
@@ -52,6 +68,58 @@ const VERDICT_CONFIG = {
 export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
   const [expanded, setExpanded] = useState(false);
+  const [showDirections, setShowDirections] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const maneuvers: Maneuver[] = pr?.route?.trip?.legs?.[0]?.maneuvers ?? [];
+  const shapeEncoded: string = pr?.route?.trip?.legs?.[0]?.shape ?? '';
+
+  const coords = shapeEncoded ? decodePolyline(shapeEncoded) : [];
+  const originCoord = coords.length > 0 ? coords[0] : null; // [lon, lat]
+  const destCoord = coords.length > 0 ? coords[coords.length - 1] : null; // [lon, lat]
+
+  // Sample up to 4 intermediate waypoints along the route geometry to guide Google/Apple Maps
+  const waypoints: [number, number][] = [];
+  if (coords.length > 10) {
+    const step = Math.floor(coords.length / 5);
+    for (let i = 1; i <= 4; i++) {
+      const idx = i * step;
+      if (idx < coords.length - 1) {
+        waypoints.push(coords[idx]);
+      }
+    }
+  }
+
+  const googleMapsUrl = originCoord && destCoord ? (() => {
+    const originStr = `${originCoord[1].toFixed(5)},${originCoord[0].toFixed(5)}`;
+    const destStr = `${destCoord[1].toFixed(5)},${destCoord[0].toFixed(5)}`;
+    const wpStr = waypoints.map(pt => `${pt[1].toFixed(5)},${pt[0].toFixed(5)}`).join('|');
+    return `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}${wpStr ? `&waypoints=${encodeURIComponent(wpStr)}` : ''}&travelmode=driving`;
+  })() : null;
+
+  const appleMapsUrl = originCoord && destCoord ? (() => {
+    const saddr = `${originCoord[1].toFixed(5)},${originCoord[0].toFixed(5)}`;
+    const daddrParts = [...waypoints.map(pt => `${pt[1].toFixed(5)},${pt[0].toFixed(5)}`), `${destCoord[1].toFixed(5)},${destCoord[0].toFixed(5)}`];
+    const daddr = daddrParts.join('+to:');
+    return `https://maps.apple.com/?saddr=${saddr}&daddr=${daddr}&dirflg=d`;
+  })() : null;
+
+  const handleCopyDirections = () => {
+    if (!maneuvers.length) return;
+    const textLines = [
+      'Fourth Route (Privacy Route)',
+      `Avoids ${pr?.cameras_avoided ?? 0} cameras · ${fmtTime(pr?.duration_seconds ?? 0)} · ${fmtMiles(pr?.distance_miles ?? 0)}`,
+      '',
+      ...maneuvers.map((m, idx) => `${idx + 1}. ${m.instruction} (${fmtMiles(m.length)})`),
+    ];
+    const fullText = textLines.join('\n');
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      try { track('copy_directions'); } catch {}
+    }
+  };
 
   const verdict = getVerdict(pr, oh);
   const cfg = VERDICT_CONFIG[verdict];
@@ -229,6 +297,109 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
         </View>
       </View>
 
+      {/* ── Real-Time Navigation & Turn-by-Turn ── */}
+      <View style={styles.navSection}>
+        <View style={styles.navHeaderRow}>
+          <Text style={styles.navSectionTitle}>🧭 Real-Time Navigation</Text>
+          {maneuvers.length > 0 && (
+            <TouchableOpacity
+              style={styles.copyDirectionsBtn}
+              onPress={handleCopyDirections}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.copyDirectionsBtnText}>
+                {copied ? '✓ Copied' : '📋 Copy Steps'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Telemetry Disclaimer Box */}
+        <View style={styles.telemetryDisclaimerBox}>
+          <Text style={styles.telemetryDisclaimerIcon}>⚠️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.telemetryDisclaimerTitle}>Privacy & Telemetry Notice</Text>
+            <Text style={styles.telemetryDisclaimerText}>
+              Google Maps and Apple Maps collect real-time location telemetry on their servers during navigation. Fourth Route embeds privacy waypoints to help external apps follow our camera-avoidance corridor, but external navigation is subject to Google and Apple data collection policies.
+            </Text>
+          </View>
+        </View>
+
+        {/* External Map Launch Buttons */}
+        <View style={styles.externalBtnRow}>
+          {googleMapsUrl && (
+            <TouchableOpacity
+              style={styles.googleMapsBtn}
+              onPress={() => {
+                try { track('open_in_google_maps'); } catch {}
+                Linking.openURL(googleMapsUrl);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.externalBtnIcon}>↗️</Text>
+              <Text style={styles.externalBtnText}>Google Maps</Text>
+            </TouchableOpacity>
+          )}
+
+          {appleMapsUrl && (
+            <TouchableOpacity
+              style={styles.appleMapsBtn}
+              onPress={() => {
+                try { track('open_in_apple_maps'); } catch {}
+                Linking.openURL(appleMapsUrl);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.externalBtnIcon}>🍎</Text>
+              <Text style={styles.externalBtnText}>Apple Maps</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Turn-by-Turn Accordion Toggle */}
+        {maneuvers.length > 0 && (
+          <TouchableOpacity
+            style={styles.directionsToggleBtn}
+            onPress={() => {
+              const next = !showDirections;
+              setShowDirections(next);
+              try { track('toggle_turn_by_turn', { expanded: next }); } catch {}
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.directionsToggleText}>
+              📋 Turn-by-Turn Directions ({maneuvers.length} steps) {showDirections ? '▲' : '▼'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Turn-by-turn list */}
+        {showDirections && maneuvers.length > 0 && (
+          <View style={styles.maneuversList}>
+            {maneuvers.map((m, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.maneuverItem,
+                  idx < maneuvers.length - 1 && styles.maneuverItemDivider,
+                ]}
+              >
+                <View style={styles.maneuverNumCol}>
+                  <Text style={styles.maneuverNum}>{idx + 1}</Text>
+                  <Text style={styles.maneuverIcon}>{getManeuverIcon(m.type)}</Text>
+                </View>
+                <View style={styles.maneuverContent}>
+                  <Text style={styles.maneuverInstruction}>{m.instruction}</Text>
+                  <Text style={styles.maneuverMeta}>
+                    {fmtMiles(m.length)} · {fmtTime(m.time)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
     </View>
   );
 }
@@ -353,4 +524,160 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { color: '#888', fontSize: 10 },
+
+  // Real-time navigation section
+  navSection: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#252545',
+  },
+  navHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  navSectionTitle: {
+    color: '#E8C97A',
+    fontSize: 12.5,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  copyDirectionsBtn: {
+    backgroundColor: '#1b2a4a',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#3a5488',
+  },
+  copyDirectionsBtnText: {
+    color: '#70A5F9',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  telemetryDisclaimerBox: {
+    flexDirection: 'row',
+    backgroundColor: '#2b1b11',
+    borderWidth: 1,
+    borderColor: '#8d5023',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 10,
+    gap: 8,
+  },
+  telemetryDisclaimerIcon: {
+    fontSize: 14,
+  },
+  telemetryDisclaimerTitle: {
+    color: '#F39C12',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  telemetryDisclaimerText: {
+    color: '#d4bba2',
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  externalBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  googleMapsBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1a3350',
+    borderWidth: 1,
+    borderColor: '#2b5f9e',
+    borderRadius: 8,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  appleMapsBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#232338',
+    borderWidth: 1,
+    borderColor: '#434368',
+    borderRadius: 8,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  externalBtnIcon: {
+    fontSize: 13,
+  },
+  externalBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  directionsToggleBtn: {
+    backgroundColor: '#131327',
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  directionsToggleText: {
+    color: '#ccc',
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  maneuversList: {
+    backgroundColor: '#111124',
+    borderWidth: 1,
+    borderColor: '#252542',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxHeight: 220,
+    overflow: 'scroll' as any,
+  },
+  maneuverItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 7,
+    gap: 10,
+  },
+  maneuverItemDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1c1c38',
+  },
+  maneuverNumCol: {
+    alignItems: 'center',
+    width: 24,
+  },
+  maneuverNum: {
+    color: '#666',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  maneuverIcon: {
+    fontSize: 13,
+    marginTop: 1,
+  },
+  maneuverContent: {
+    flex: 1,
+  },
+  maneuverInstruction: {
+    color: '#eee',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  maneuverMeta: {
+    color: '#888',
+    fontSize: 10.5,
+    marginTop: 2,
+  },
 });
