@@ -23,6 +23,14 @@ import requests
 import psycopg2
 from psycopg2.extras import execute_values
 
+try:
+    from dotenv import load_dotenv
+    # Load root .env or .env.local if present
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+except ImportError:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -35,24 +43,31 @@ DATABASE_URL = os.getenv(
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-# Query for all ALPR/ANPR nodes in OSM (global — may be slow; add bbox to scope)
+# Query for all ALPR/ANPR and Flock Safety nodes in OSM
 OVERPASS_QUERY = """
-[out:json][timeout:120];
+[out:json][timeout:180];
 (
-  node["man_made"="surveillance"]["surveillance:type"="ALPR"];
-  node["man_made"="surveillance"]["surveillance:type"="alpr"];
-  node["man_made"="surveillance"]["surveillance:type"="ANPR"];
-  node["man_made"="surveillance"]["surveillance:type"="anpr"];
+  node["man_made"="surveillance"]["surveillance:type"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"];
+  node["man_made"="surveillance"]["camera:type"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"];
+  node["man_made"="surveillance"]["operator"~"Flock",i];
+  node["man_made"="surveillance"]["manufacturer"~"Flock",i];
+  node["man_made"="surveillance"]["brand"~"Flock",i];
+  node["surveillance"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"];
 );
 out body;
 """
 
-# For dev/testing: limit to a specific bounding box
+# For dev/testing/regional sync: limit to a specific bounding box
 # Format: south,west,north,east
 BBOX_QUERY_TEMPLATE = """
-[out:json][timeout:60];
+[out:json][timeout:90];
 (
   node["man_made"="surveillance"]["surveillance:type"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"]({bbox});
+  node["man_made"="surveillance"]["camera:type"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"]({bbox});
+  node["man_made"="surveillance"]["operator"~"Flock",i]({bbox});
+  node["man_made"="surveillance"]["manufacturer"~"Flock",i]({bbox});
+  node["man_made"="surveillance"]["brand"~"Flock",i]({bbox});
+  node["surveillance"~"^[Aa][Ll][Pp][Rr]$|^[Aa][Nn][Pp][Rr]$"]({bbox});
 );
 out body;
 """
@@ -101,23 +116,53 @@ def parse_element(el: dict):
     except (ValueError, TypeError):
         direction = None
 
+    # Identify operator / manufacturer / brand
+    op = tags.get("operator")
+    mfr = tags.get("manufacturer")
+    brand = tags.get("brand")
+
+    # Combine operator and vendor info cleanly (e.g. "City of Piedmont (Flock Safety)")
+    operator_str = None
+    if op and mfr and op.lower() != mfr.lower():
+        operator_str = f"{op} ({mfr})"
+    elif op:
+        operator_str = op
+    elif mfr:
+        operator_str = mfr
+    elif brand:
+        operator_str = brand
+
+    is_flock = any("flock" in (s or "").lower() for s in (op, mfr, brand))
+
     # Derive confidence from tagging richness
     confidence = 0.6  # base for any ALPR tag
-    if tags.get("manufacturer") or tags.get("operator"):
+    if is_flock:
+        confidence += 0.25
+    elif mfr or op:
         confidence += 0.2
     if direction is not None:
         confidence += 0.1
     if tags.get("verified"):
         confidence += 0.1
 
+    notes = tags.get("description")
+    if not notes:
+        extras = []
+        if tags.get("camera:mount"):
+            extras.append(f"Mounted on {tags.get('camera:mount')}")
+        if tags.get("electricity") == "solar":
+            extras.append("Solar-powered")
+        if extras:
+            notes = " · ".join(extras)
+
     return {
         "osm_id": el["id"],
         "lat": lat,
         "lon": lon,
-        "operator": tags.get("manufacturer") or tags.get("operator"),
+        "operator": operator_str,
         "direction": direction,
         "confidence": round(min(confidence, 1.0), 2),
-        "notes": tags.get("description"),
+        "notes": notes,
     }
 
 
