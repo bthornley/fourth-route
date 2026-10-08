@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Header, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from routing import get_route, get_standard_route, valhalla_status
+from routing import find_privacy_route, get_standard_route, valhalla_status
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -489,41 +489,55 @@ def route(req: RouteRequest, db=Depends(get_db)):
     """
     Get a camera-avoiding route between two points.
 
-    Fetches ALPR cameras in the corridor, builds exclusion polygons around each,
-    and requests a route from Valhalla that avoids them.
+    Iteratively excludes the cameras each candidate route passes and
+    re-routes, returning the route with the fewest cameras found.
 
-    Returns the Valhalla route GeoJSON plus metadata about cameras avoided.
+    Returns the Valhalla route plus verified camera counts for that route.
     """
     origin = (req.origin_lat, req.origin_lon)
     dest = (req.dest_lat, req.dest_lon)
+    radius = _effective_radius(req.exclusion_radius_m)
 
-    # 1. Fetch cameras in the rough corridor
+    # Cameras in the rough corridor (for map display only)
     cameras = _fetch_corridor_cameras(db, origin, dest, req.corridor_buffer_deg)
 
-    # 2. Get camera-avoiding route from Valhalla
     try:
-        result = get_route(
+        result = find_privacy_route(
             origin=origin,
             destination=dest,
-            cameras=cameras,
-            exclusion_radius_m=req.exclusion_radius_m,
+            cameras_near_route=lambda r: _cameras_near_route(db, r, radius, origin, dest),
+            exclusion_radius_m=radius,
             costing=req.costing,
-            fallback_to_standard=req.fallback,
             use_highways=req.use_highways,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Routing error: {e}")
 
-    # 3. Summarise route metadata
-    legs = result["route"].get("trip", {}).get("legs", [{}])
+    on_route = result["cameras_on_route"]
+    on_ids = {c["id"] for c in on_route}
+    avoided = sum(1 for cid in result["excluded_ids"] if cid not in on_ids)
+    camera_free = len(on_route) == 0
+
+    if not camera_free and not req.fallback:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Routing error: no camera-free path found ({len(on_route)} cameras on best route)",
+        )
+
     summary = result["route"].get("trip", {}).get("summary", {})
 
     return {
-        "status": "fallback" if result.get("fallback") else "avoided",
+        "status": "avoided" if camera_free else "fallback",
         "cameras_in_corridor": len(cameras),
-        "cameras_avoided": result["avoided"],
-        "fallback": result.get("fallback", False),
-        "fallback_reason": result.get("fallback_reason"),
+        "cameras_avoided": avoided,
+        "cameras_on_route": len(on_route),
+        "fallback": not camera_free,
+        "fallback_reason": None if camera_free else (
+            f"No camera-free path found; returning the route with the fewest cameras found "
+            f"({len(on_route)})."
+        ),
+        "detection_radius_m": radius,
+        "search": {"iterations": result["iterations"], "stop_reason": result["stop_reason"]},
         "distance_miles": summary.get("length"),
         "duration_seconds": summary.get("time"),
         "route": result["route"],
@@ -539,50 +553,58 @@ def route_compare(req: RouteRequest, db=Depends(get_db)):
     """
     Compare a camera-avoiding route vs. a standard fastest route side by side.
     Useful for showing the user the privacy/time tradeoff.
+
+    Camera counts are verified against each route's geometry. For backward
+    compatibility with older clients (which display
+    `cameras_in_corridor - cameras_avoided` as "unavoidable"),
+    `cameras_in_corridor` is the number of cameras on the fastest route and
+    `cameras_avoided` is how many fewer the privacy route passes. The raw
+    bounding-box count is returned as `cameras_in_area`.
     """
     origin = (req.origin_lat, req.origin_lon)
     dest = (req.dest_lat, req.dest_lon)
+    radius = _effective_radius(req.exclusion_radius_m)
 
     cameras = _fetch_corridor_cameras(db, origin, dest, req.corridor_buffer_deg)
-
-    # Run both routes
-    try:
-        avoiding = get_route(
-            origin=origin,
-            destination=dest,
-            cameras=cameras,
-            exclusion_radius_m=req.exclusion_radius_m,
-            costing=req.costing,
-            fallback_to_standard=False,
-            use_highways=req.use_highways,
-        )
-        avoiding_summary = avoiding["route"].get("trip", {}).get("summary", {})
-        # Count cameras genuinely on the privacy route (unavoidable)
-        corridor_ids = [c["id"] for c in cameras]
-        cams_on_privacy = _cameras_on_route(
-            db, avoiding["route"], corridor_ids, req.exclusion_radius_m
-        )
-        avoiding_result = {
-            "distance_miles": avoiding_summary.get("length"),
-            "duration_seconds": avoiding_summary.get("time"),
-            "cameras_avoided": len(cameras) - cams_on_privacy,
-            "cameras_unavoidable": cams_on_privacy,
-            "route": avoiding["route"],
-        }
-    except Exception:
-        avoiding_result = None
+    near = lambda r: _cameras_near_route(db, r, radius, origin, dest)
 
     try:
         standard_route = get_standard_route(origin, dest, req.costing)
+        std_cams = near(standard_route)
         std_summary = standard_route.get("trip", {}).get("summary", {})
         standard_result = {
             "distance_miles": std_summary.get("length"),
             "duration_seconds": std_summary.get("time"),
-            "cameras_on_route": len(cameras),  # approximate
+            "cameras_on_route": len(std_cams),
             "route": standard_route,
         }
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Standard routing error: {e}")
+
+    try:
+        privacy = find_privacy_route(
+            origin=origin,
+            destination=dest,
+            cameras_near_route=near,
+            exclusion_radius_m=radius,
+            costing=req.costing,
+            use_highways=req.use_highways,
+            seed_routes=[(standard_route, std_cams)],
+        )
+        prv_cams = privacy["cameras_on_route"]
+        prv_summary = privacy["route"].get("trip", {}).get("summary", {})
+        avoiding_result = {
+            "distance_miles": prv_summary.get("length"),
+            "duration_seconds": prv_summary.get("time"),
+            "cameras_avoided": max(0, len(std_cams) - len(prv_cams)),
+            "cameras_unavoidable": len(prv_cams),
+            "cameras_on_route": len(prv_cams),
+            "search": {"iterations": privacy["iterations"], "stop_reason": privacy["stop_reason"]},
+            "route": privacy["route"],
+        }
+    except Exception as e:
+        log.warning(f"Privacy routing failed: {e}")
+        avoiding_result = None
 
     # Compute overhead
     overhead = None
@@ -600,7 +622,9 @@ def route_compare(req: RouteRequest, db=Depends(get_db)):
             }
 
     return {
-        "cameras_in_corridor": len(cameras),
+        "cameras_in_corridor": len(std_cams),
+        "cameras_in_area": len(cameras),
+        "detection_radius_m": radius,
         "privacy_route": avoiding_result,
         "standard_route": standard_result,
         "overhead": overhead,
@@ -669,24 +693,34 @@ def _decode_valhalla_polyline(encoded: str) -> list[tuple[float, float]]:
     return result
 
 
-def _cameras_on_route(conn, route: dict, corridor_camera_ids: list[int],
-                      exclusion_radius_m: float) -> int:
-    """Count corridor cameras within exclusion_radius_m of the route geometry."""
-    if not corridor_camera_ids:
-        return 0
+# Cap on the camera detection / exclusion radius. Flock-class ALPRs read plates
+# within roughly 30–50 m; larger radii count cameras on parallel streets and
+# block cross streets, and exhaust Valhalla's exclusion budget. The frontend
+# requests 120 m, so this cap is what actually applies.
+MAX_DETECTION_RADIUS_M = float(os.getenv("MAX_DETECTION_RADIUS_M", "40"))
 
-    # Collect all coordinates from all legs
+
+def _effective_radius(requested_m: float) -> float:
+    return min(requested_m, MAX_DETECTION_RADIUS_M)
+
+
+def _cameras_near_route(conn, route: dict, radius_m: float,
+                        origin: tuple[float, float], dest: tuple[float, float]) -> list[dict]:
+    """
+    Return every camera within radius_m of the route geometry, with its distance
+    to the nearer trip endpoint (used to avoid excluding cameras at the endpoints).
+    """
     all_coords: list[tuple[float, float]] = []
     for leg in route.get("trip", {}).get("legs", []):
         shape = leg.get("shape", "")
         if shape:
             all_coords.extend(_decode_valhalla_polyline(shape))
 
-    if not all_coords:
-        return 0
+    if len(all_coords) < 2:
+        return []
 
-    # Thin to max 500 points to keep the WKT manageable
-    step = max(1, len(all_coords) // 500)
+    # Only thin very long routes; thinning cuts corners and skews counts
+    step = max(1, len(all_coords) // 4000)
     coords = all_coords[::step]
     if coords[-1] != all_coords[-1]:
         coords.append(all_coords[-1])
@@ -696,15 +730,18 @@ def _cameras_on_route(conn, route: dict, corridor_camera_ids: list[int],
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT COUNT(*) AS cnt FROM cameras
-            WHERE id = ANY(%s)
-              AND ST_DWithin(
-                  geom,
-                  ST_GeomFromText(%s, 4326)::geography,
-                  %s
-              )
+            SELECT id,
+                   ST_Y(geom::geometry) AS lat,
+                   ST_X(geom::geometry) AS lon,
+                   operator,
+                   LEAST(
+                       ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography),
+                       ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography)
+                   ) AS endpoint_dist_m
+            FROM cameras
+            WHERE ST_DWithin(geom, ST_GeomFromText(%s, 4326)::geography, %s)
             """,
-            (corridor_camera_ids, wkt, exclusion_radius_m),
+            (origin[1], origin[0], dest[1], dest[0], wkt, radius_m),
         )
-        return cur.fetchone()["cnt"]
+        return [dict(r) for r in cur.fetchall()]
 
