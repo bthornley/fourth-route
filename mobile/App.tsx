@@ -173,7 +173,8 @@ export default function App() {
             </View>
           )}
 
-          {/* Footer links */}
+          {/* Footer links (hidden while a route sheet is open so they don't cover its buttons) */}
+          {!result && (
           <View style={styles.footer} pointerEvents="box-none">
             {[
               ['About', '/about'],
@@ -192,6 +193,7 @@ export default function App() {
               <Text style={[styles.footerLink, { color: '#f472b6' }]}>📷 @fourthroute</Text>
             </TouchableOpacity>
           </View>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
   hintSub: { color: '#aaa', textAlign: 'center', fontSize: 11, marginTop: 4 },
   footer: {
     position: 'absolute' as any,
-    bottom: 36,
+    bottom: 52,
     left: 8, right: 8,
     flexDirection: 'row',
     flexWrap: 'wrap',
