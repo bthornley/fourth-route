@@ -75,7 +75,7 @@ export function useRoute() {
       try {
         track('route_calculated', {
           cameras_avoided: result.privacy_route?.cameras_avoided ?? 0,
-          cameras_unavoidable: result.cameras_in_corridor - (result.privacy_route?.cameras_avoided ?? 0),
+          cameras_unavoidable: result.privacy_route?.cameras_unavoidable ?? (result.cameras_in_corridor - (result.privacy_route?.cameras_avoided ?? 0)),
           cameras_in_corridor: result.cameras_in_corridor,
           overhead_seconds: result.overhead?.extra_seconds ?? 0,
           overhead_miles: Number((result.overhead?.extra_miles ?? 0).toFixed(2)),

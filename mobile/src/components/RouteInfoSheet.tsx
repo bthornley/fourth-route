@@ -44,10 +44,18 @@ function getManeuverIcon(type: number): string {
   }
 }
 
-type Verdict = 'strictly_better' | 'free_win' | 'time_only' | 'real_overhead' | 'impossible';
+type Verdict = 'strictly_better' | 'free_win' | 'time_only' | 'real_overhead' | 'no_improvement' | 'impossible';
 
-function getVerdict(pr: CompareResult['privacy_route'], oh: CompareResult['overhead']): Verdict {
+/** Cameras still on the privacy route. Prefers the API's verified count; falls back to legacy math. */
+export function unavoidableCount(result: CompareResult): number {
+  const pr = result.privacy_route;
+  if (!pr) return result.cameras_in_corridor;
+  return pr.cameras_unavoidable ?? Math.max(0, result.cameras_in_corridor - pr.cameras_avoided);
+}
+
+function getVerdict(pr: CompareResult['privacy_route'], oh: CompareResult['overhead'], unavoidable: number): Verdict {
   if (!pr) return 'impossible';
+  if (pr.cameras_avoided === 0 && unavoidable > 0) return 'no_improvement';
   if (!oh) return 'time_only';
   const fasterOrSame  = oh.extra_seconds <= 0;
   const shorterOrSame = oh.extra_miles <= 0;
@@ -62,7 +70,8 @@ const VERDICT_CONFIG = {
   free_win:        { emoji: '✨', label: 'Free win on distance',    sub: 'Privacy is shorter — freeway added unnecessary miles.',   color: '#2ECC71' },
   time_only:       { emoji: '⚖️', label: 'Minimal overhead',        sub: 'Same distance, small time difference.',                   color: '#F39C12' },
   real_overhead:   { emoji: '⏱️', label: 'Real overhead',           sub: 'Privacy routing costs extra time and distance.',          color: '#E74C3C' },
-  impossible:      { emoji: '⚠️', label: 'No camera-free path',     sub: 'Every route through this corridor passes a camera.',      color: '#E74C3C' },
+  no_improvement:  { emoji: '⚠️', label: 'No lower-camera route found', sub: 'We couldn\u2019t find a route that passes fewer cameras than the fastest one.', color: '#E74C3C' },
+  impossible:      { emoji: '⚠️', label: 'No privacy route',        sub: 'We couldn\u2019t calculate an alternate route for this trip.', color: '#E74C3C' },
 };
 
 export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
@@ -121,7 +130,8 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
     }
   };
 
-  const verdict = getVerdict(pr, oh);
+  const unavoidable = unavoidableCount(result);
+  const verdict = getVerdict(pr, oh, unavoidable);
   const cfg = VERDICT_CONFIG[verdict];
   const profile = VEHICLE_PROFILES[vehicle];
 
@@ -159,7 +169,7 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
               <Text style={{ color: '#27AE60' }}>{pr ? pr.cameras_avoided : 0} avoided</Text>
               {'  ·  '}
               <Text style={{ color: '#E74C3C' }}>
-                {pr ? cameras_in_corridor - pr.cameras_avoided : cameras_in_corridor} unavoidable
+                {unavoidable} unavoidable
               </Text>
             </Text>
           </View>
@@ -283,7 +293,7 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statVal}>{cameras_in_corridor}</Text>
-          <Text style={styles.statLabel}>cameras{'\n'}in corridor</Text>
+          <Text style={styles.statLabel}>cameras on{'\n'}fastest route</Text>
         </View>
         <View style={styles.stat}>
           <Text style={[styles.statVal, { color: '#27AE60' }]}>{pr ? pr.cameras_avoided : 0}</Text>
@@ -291,7 +301,7 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
         </View>
         <View style={styles.stat}>
           <Text style={[styles.statVal, { color: '#E74C3C' }]}>
-            {pr ? cameras_in_corridor - pr.cameras_avoided : cameras_in_corridor}
+            {unavoidable}
           </Text>
           <Text style={styles.statLabel}>cameras{'\n'}unavoidable</Text>
         </View>

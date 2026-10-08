@@ -25,16 +25,24 @@ export interface RouteResult {
 }
 
 export interface CompareResult {
+  /** Cameras on the fastest route (verified against route geometry). */
   cameras_in_corridor: number;
+  /** Cameras in the trip's bounding box (context only). */
+  cameras_in_area?: number;
+  detection_radius_m?: number;
   privacy_route: {
     distance_miles: number;
     duration_seconds: number;
     cameras_avoided: number;
+    /** Cameras still on the privacy route (verified). */
+    cameras_unavoidable?: number;
+    cameras_on_route?: number;
     route: ValhallaRoute;
   } | null;
   standard_route: {
     distance_miles: number;
     duration_seconds: number;
+    cameras_on_route?: number;
     route: ValhallaRoute;
   };
   overhead: {
