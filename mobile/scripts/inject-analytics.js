@@ -26,6 +26,39 @@ if (!html.includes('/_vercel/insights')) {
   }
 }
 
+// Social link previews (Facebook, Messenger, iMessage, X, Slack...).
+// Without these, shared links render as a bare URL. og:image must be an absolute URL.
+// Regenerate the image with: python3 scripts/generate_og_image.py
+const SITE = 'https://www.fourthroute.org';
+const OG_TITLE = 'Fourth Route: route around license plate cameras';
+const OG_DESC = 'See the ALPR (Flock) cameras on your drive and find a route that passes fewer. Free and open source. No account, no tracking.';
+const ogTags = [
+  `<meta name="description" content="${OG_DESC}">`,
+  `<meta property="og:type" content="website">`,
+  `<meta property="og:site_name" content="Fourth Route">`,
+  `<meta property="og:title" content="${OG_TITLE}">`,
+  `<meta property="og:description" content="${OG_DESC}">`,
+  `<meta property="og:url" content="${SITE}/">`,
+  `<meta property="og:image" content="${SITE}/og-image.png">`,
+  `<meta property="og:image:width" content="1200">`,
+  `<meta property="og:image:height" content="630">`,
+  `<meta property="og:image:alt" content="Fourth Route: a fastest route passing license plate cameras versus a route that goes around them">`,
+  `<meta name="twitter:card" content="summary_large_image">`,
+  `<meta name="twitter:title" content="${OG_TITLE}">`,
+  `<meta name="twitter:description" content="${OG_DESC}">`,
+  `<meta name="twitter:image" content="${SITE}/og-image.png">`,
+].join('');
+if (!html.includes('property="og:title"')) {
+  html = html.replace('</head>', `${ogTags}</head>`);
+  fs.writeFileSync(htmlPath, html);
+  console.log('✅ Injected Open Graph / Twitter preview tags');
+}
+const ogSrc = path.join(__dirname, '../assets/og-image.png');
+if (fs.existsSync(ogSrc)) {
+  fs.copyFileSync(ogSrc, path.join(__dirname, '../web-build/og-image.png'));
+  console.log('✅ Copied og-image.png to web-build');
+}
+
 // Ensure manifest.json has full PWA icon definitions
 const manifestPath = path.join(__dirname, '../web-build/manifest.json');
 if (fs.existsSync(manifestPath)) {
