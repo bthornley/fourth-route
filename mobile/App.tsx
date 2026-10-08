@@ -188,6 +188,9 @@ export default function App() {
             <TouchableOpacity onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}>
               <Text style={[styles.footerLink, { color: '#E8C97A' }]}>☕ Donate</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://instagram.com/fourthroute')}>
+              <Text style={[styles.footerLink, { color: '#f472b6' }]}>📷 @fourthroute</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -241,11 +244,12 @@ const styles = StyleSheet.create({
   hintSub: { color: '#aaa', textAlign: 'center', fontSize: 11, marginTop: 4 },
   footer: {
     position: 'absolute' as any,
-    bottom: 40,
-    left: 0, right: 0,
+    bottom: 36,
+    left: 8, right: 8,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 4,
+    gap: 6,
     alignItems: 'center',
   },
   footerLink: {

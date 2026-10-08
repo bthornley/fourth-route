@@ -2,12 +2,14 @@
 
 **Navigate within your 4th Amendment rights — CA, WA, OR & TX.**
 
-Fourth Route is a free, open-source navigation app that maps 38,368 Automated License Plate Reader (ALPR) cameras across California, Washington, Oregon, and Texas and calculates a driving route that avoids as many as possible — showing you the exact tradeoff in time, distance, and cameras skipped.
+Fourth Route is a free, open-source navigation app that maps 44,598 Automated License Plate Reader (ALPR) cameras across California, Nevada, Washington, Oregon, and Texas and calculates a driving route that avoids as many as possible — showing you the exact tradeoff in time, distance, and cameras skipped.
 
 🌐 **Live at [fourthroute.org](https://fourthroute.org)** — no account required, no user tracking.  
-☕ **Support server costs on [Ko-fi](https://ko-fi.com/fourthroute)**
+☕ **Support server costs on [Ko-fi](https://ko-fi.com/fourthroute)**  
+📷 **Follow updates on [Instagram](https://instagram.com/fourthroute)**
 
 [![Ko-Fi](https://img.shields.io/badge/Ko--fi-Support_Fourth_Route-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/fourthroute)
+[![Instagram](https://img.shields.io/badge/Instagram-@fourthroute-E4405F?logo=instagram&logoColor=white)](https://instagram.com/fourthroute)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 ---

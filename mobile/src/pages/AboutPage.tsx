@@ -26,6 +26,10 @@ export function AboutPage({ navigate }: Props) {
             <Text style={styles.navLink}>Contact</Text>
           </TouchableOpacity>
           <Text style={styles.navDot}>·</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('https://instagram.com/fourthroute')}>
+            <Text style={styles.navLink}>Instagram ↗</Text>
+          </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>
             <Text style={styles.navLink}>GitHub ↗</Text>
           </TouchableOpacity>
@@ -127,7 +131,7 @@ export function AboutPage({ navigate }: Props) {
             Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras you actually pass, not just cameras near your origin or destination.
           </Text>
           <Text style={styles.body}>
-            <Text style={styles.highlight}>41,122 cameras</Text> are mapped across California, Nevada, Arizona, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
+            <Text style={styles.highlight}>44,598 cameras</Text> are mapped across California, Nevada, Arizona, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
           </Text>
         </View>
 
@@ -204,12 +208,20 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.body}>
             Fourth Route has no corporate sponsors, no ad tracking, and no subscriptions. If this tool helps you navigate with privacy, consider chipping in to help cover monthly server, tile CDN, and routing compute costs:
           </Text>
-          <TouchableOpacity
-            style={[styles.heroBtn, { alignSelf: 'flex-start', marginTop: 6, marginBottom: 8 }]}
-            onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}
-          >
-            <Text style={styles.heroBtnText}>Support on Ko-fi ☕</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginTop: 6, marginBottom: 8 }}>
+            <TouchableOpacity
+              style={styles.heroBtn}
+              onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}
+            >
+              <Text style={styles.heroBtnText}>Support on Ko-fi ☕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.heroBtn, { backgroundColor: '#1a1a36', borderWidth: 1, borderColor: '#f472b6' }]}
+              onPress={() => Linking.openURL('https://instagram.com/fourthroute')}
+            >
+              <Text style={[styles.heroBtnText, { color: '#f472b6' }]}>Follow @fourthroute 📷</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Footer */}
@@ -231,6 +243,10 @@ export function AboutPage({ navigate }: Props) {
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}>
               <Text style={[styles.footerLink, { color: '#E8C97A' }]}>☕ Ko-fi</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>·</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://instagram.com/fourthroute')}>
+              <Text style={[styles.footerLink, { color: '#f472b6' }]}>📷 Instagram</Text>
             </TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>
