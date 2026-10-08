@@ -180,11 +180,11 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.sectionLabel}>Your privacy</Text>
           <Text style={styles.sectionTitle}>We collect nothing about you</Text>
           {[
-            'No user accounts',
-            'No route history stored',
-            'No IP address logging',
-            'No location tracking',
-            'No cookies beyond what the browser requires',
+            'No user accounts or logins',
+            'No route history or search queries stored',
+            'No application IP logging or database tracking',
+            'No ongoing location tracking (routes are processed ephemerally in RAM)',
+            'No tracking cookies or advertising SDKs',
           ].map(item => (
             <View key={item} style={styles.checkRow}>
               <Text style={styles.checkMark}>✓</Text>
@@ -192,7 +192,7 @@ export function AboutPage({ navigate }: Props) {
             </View>
           ))}
           <Text style={[styles.body, { marginTop: 12 }]}>
-            Vercel Analytics collects aggregate page view counts — no individual user data. You can verify this in the source code.{' '}
+            Vercel Analytics collects aggregate page view counts — no individual user data. Address searches are proxied server-side to protect your IP.{' '}
             <Text style={styles.link} onPress={() => navigate('/privacy')}>Full privacy policy →</Text>
           </Text>
         </View>

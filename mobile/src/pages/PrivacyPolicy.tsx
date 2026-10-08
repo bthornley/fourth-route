@@ -36,26 +36,29 @@ export function PrivacyPolicy({ navigate }: Props) {
         </Text>
 
         <Section title="What we do not collect">
-          <Body>Fourth Route does not collect:</Body>
+          <Body>Fourth Route does not collect or retain:</Body>
           {[
             'Your name, email address, or any account information (no accounts exist)',
-            'Your location or GPS coordinates',
+            'Your location history or ongoing GPS tracking',
             'Your route history or search queries',
-            'Your IP address',
-            'Cookies beyond what the browser requires to serve the page',
-            'Device identifiers or fingerprints',
+            'Your IP address in our database or application logs',
+            'Cookies or persistent tracking identifiers',
+            'Device fingerprints or advertising identifiers',
           ].map(item => <Check key={item} text={item} />)}
         </Section>
 
-        <Section title="Route calculations">
+        <Section title="Route calculations & geocoding">
           <Body>
-            When you request a route, your origin and destination coordinates are sent to our API server (hosted on Railway, US region) to compute the route. These coordinates are used only to calculate and return a response. They are not logged, stored in a database, or associated with any identifier. Once the response is returned, the coordinates are discarded.
+            When you request a route, your origin and destination coordinates are sent to our API server (hosted on Railway, US region) to compute the route with our Valhalla engine. These coordinates are processed ephemerally in memory solely to calculate and return the navigation geometry. They are never written to disk, stored in a database, or linked to any user identifier.
+          </Body>
+          <Body>
+            When you search for an address, the query is proxied through our own backend with rounded coordinates and memory-only caching so your browser never connects directly to third-party geocoding providers.
           </Body>
         </Section>
 
         <Section title="Analytics">
           <Body>
-            The app includes Vercel Analytics and Vercel Speed Insights. These services collect <Bold>aggregate, anonymous metrics only</Bold> — page view counts, general geographic region (country/state level), and performance timing. No individual user data is stored. No cross-site tracking occurs. You can review Vercel's data practices at{' '}
+            The web app includes Vercel Analytics and Speed Insights. These services collect <Bold>aggregate, anonymous metrics only</Bold> — page view counts, referrer sites, country/region level aggregates, and performance timing. No cookies are used, no individual user sessions are tracked across the web, and no GPS or route data is ever transmitted to analytics. You can review Vercel's privacy policy at{' '}
             <Anchor url="https://vercel.com/legal/privacy-policy">vercel.com/legal/privacy-policy</Anchor>.
           </Body>
         </Section>
@@ -66,7 +69,7 @@ export function PrivacyPolicy({ navigate }: Props) {
           </Body>
           {[
             'OpenStreetMap (openstreetmap.org) — community-contributed geographic data, licensed under ODbL',
-            'Public records and FOIA responses from California government agencies',
+            'Public records and FOIA responses from government agencies',
           ].map(item => <Check key={item} text={item} />)}
           <Body>
             No private or proprietary surveillance data is used. The camera database is itself publicly available — anyone can download the raw data from the OpenStreetMap Overpass API.
@@ -75,17 +78,20 @@ export function PrivacyPolicy({ navigate }: Props) {
 
         <Section title="In-app camera reports">
           <Body>
-            If you use the long-press feature to report a camera location, the coordinates and any notes you enter are submitted to our API and stored in the camera database for moderation. No other information (IP address, device type, or identifier) is stored alongside the report.
+            If you use the long-press feature to report a camera location, the coordinates, operator name, and notes you enter are submitted to our API and stored in the camera database for human moderation. No personal identifier, IP address, or user account is associated with the report. Automated alert notifications may be transmitted to administrators via Resend or webhooks.
           </Body>
         </Section>
 
         <Section title="Third-party services">
-          <Body>The app uses the following third-party infrastructure:</Body>
+          <Body>The app relies on the following third-party infrastructure:</Body>
           {[
-            ['Vercel', 'Frontend hosting and CDN — vercel.com/legal/privacy-policy'],
-            ['Railway', 'API and routing engine hosting — railway.app/legal/privacy'],
-            ['Supabase', 'Database hosting (camera data only) — supabase.com/privacy'],
-            ['Nominatim / OpenStreetMap', 'Address geocoding — openstreetmap.org/privacy'],
+            ['Vercel', 'Frontend hosting, edge CDN, and aggregate anonymous analytics — vercel.com/legal/privacy-policy'],
+            ['Railway', 'API backend and Valhalla routing engine hosting — railway.app/legal/privacy'],
+            ['Supabase', 'Managed PostgreSQL / PostGIS database (stores public camera locations only) — supabase.com/privacy'],
+            ['OpenFreeMap', 'Open-source vector map tiles and style hosting — openfreemap.org'],
+            ['Nominatim / OpenStreetMap', 'Geocoding queries (proxied server-side via our API) — openstreetmap.org/privacy'],
+            ['Web3Forms', 'Contact and feedback message delivery on the /contact page — web3forms.com/privacy'],
+            ['Resend', 'Optional administrative alert delivery for community camera reports — resend.com/privacy'],
           ].map(([name, desc]) => (
             <View key={name as string} style={styles.thirdPartyRow}>
               <Text style={styles.thirdPartyName}>{name}</Text>

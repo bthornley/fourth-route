@@ -62,15 +62,15 @@ Enter an origin and destination. Fourth Route returns two routes side by side:
 
 ## Privacy
 
-Fourth Route collects nothing about you:
+Fourth Route is designed with privacy as the core constraint:
 
-- No user accounts
-- No route logging
-- No IP storage
-- No location tracking
-- Vercel Analytics records only aggregate page views (no individual user data)
+- **No user accounts or logins:** No personal identifiers exist in our system.
+- **Ephemeral route calculations:** Origin and destination coordinates are processed strictly in RAM to compute Valhalla geometries and PostGIS camera intersections. They are never written to disk, database, or application logs.
+- **Privacy-proxied geocoding:** Address and reverse geocoding queries are routed through our backend proxy with coordinate rounding and in-memory caching to shield client IP addresses.
+- **No application IP logging:** We do not record or store user IP addresses in our database.
+- **Privacy-preserving analytics:** Vercel Web Analytics records aggregate, cookie-less page counts without tracking individual users across the web.
 
-The camera database is built entirely from public sources. Your route calculations happen server-side with no association to your identity.
+The camera database is built entirely from public sources. Your navigation queries remain completely unlinked from your identity.
 
 ---
 

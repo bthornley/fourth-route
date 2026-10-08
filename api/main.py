@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Generator
 
 import hmac
+import requests
 import psycopg2
 import psycopg2.extras
 from fastapi import FastAPI, HTTPException, Depends, Query, Header, BackgroundTasks
