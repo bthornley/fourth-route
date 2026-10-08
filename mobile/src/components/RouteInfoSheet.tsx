@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { track } from '@vercel/analytics';
 import { CompareResult, Maneuver, decodePolyline } from '../services/api';
 import {
@@ -74,35 +74,11 @@ const VERDICT_CONFIG = {
   impossible:      { emoji: '⚠️', label: 'No privacy route',        sub: 'We couldn\u2019t calculate an alternate route for this trip.', color: '#E74C3C' },
 };
 
-// ── Sharing ──
-// Shares the camera counts only, never origin, destination or route shape, so a public
-// post can't reveal where someone lives or works. No Facebook SDK or pixel: native share
-// sheet where available, otherwise Facebook's plain share link (which renders our OG preview).
-const SHARE_URL = 'https://www.fourthroute.org/?utm_source=share&utm_medium=route_result';
-
-const cams = (n: number) => `${n} license plate camera${n === 1 ? '' : 's'}`;
-
-export function buildShareText(fastest: number, remaining: number, avoided: number, extraSeconds?: number): string {
-  const tail = 'Check your own drive (free, no account, no tracking):';
-  if (avoided > 0) {
-    const cost = extraSeconds === undefined ? ''
-      : extraSeconds <= 0 ? ', and it was no slower'
-      : extraSeconds < 60 ? ' for under a minute extra'
-      : ` for ${Math.round(extraSeconds / 60)} extra min`;
-    return `The fastest route for my drive passes ${cams(fastest)}. Fourth Route found one that passes ${remaining === 0 ? 'none' : remaining}${cost}. ${tail}`;
-  }
-  if (fastest > 0) return `My drive passes ${cams(fastest)}. ${tail}`;
-  return `Find out how many license plate cameras are on your drive. ${tail}`;
-}
-
-const canWebShare = Platform.OS === 'web' && typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function';
-
 export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
   const [expanded, setExpanded] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
 
   const maneuvers: Maneuver[] = pr?.route?.trip?.legs?.[0]?.maneuvers ?? [];
   const shapeEncoded: string = pr?.route?.trip?.legs?.[0]?.shape ?? '';
@@ -157,30 +133,6 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
   const unavoidable = unavoidableCount(result);
   const verdict = getVerdict(pr, oh, unavoidable);
   const cfg = VERDICT_CONFIG[verdict];
-
-  const shareText = buildShareText(cameras_in_corridor, unavoidable, pr?.cameras_avoided ?? 0, oh?.extra_seconds);
-
-  const handleShare = async (method: 'native' | 'facebook' | 'copy') => {
-    try { track('share_result', { method, avoided: pr?.cameras_avoided ?? 0 }); } catch {}
-    try {
-      if (method === 'native') {
-        if (Platform.OS === 'web') {
-          await (navigator as any).share({ title: 'Fourth Route', text: shareText, url: SHARE_URL });
-        } else {
-          await Share.share({ message: `${shareText} ${SHARE_URL}` });
-        }
-      } else if (method === 'facebook') {
-        // Facebook doesn't allow prefilled post text; the link preview (OG tags) carries the message.
-        Linking.openURL(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`);
-      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(`${shareText} ${SHARE_URL}`);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2500);
-      }
-    } catch {
-      // User cancelled the share sheet, or clipboard unavailable. Nothing to do.
-    }
-  };
   const profile = VEHICLE_PROFILES[vehicle];
 
   // Fuel savings (only when privacy is shorter)
@@ -354,25 +306,6 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
           <Text style={styles.statLabel}>cameras{'\n'}unavoidable</Text>
         </View>
       </View>
-
-      {/* ── Share result (counts only, never the route) ── */}
-      <View style={styles.shareRow}>
-        {Platform.OS !== 'web' || canWebShare ? (
-          <TouchableOpacity style={[styles.shareBtn, styles.shareBtnPrimary]} onPress={() => handleShare('native')} activeOpacity={0.7}>
-            <Text style={styles.shareBtnText}>📤 Share this result</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity style={[styles.shareBtn, styles.shareBtnFacebook]} onPress={() => handleShare('facebook')} activeOpacity={0.7}>
-              <Text style={styles.shareBtnText}>Share on Facebook</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare('copy')} activeOpacity={0.7}>
-              <Text style={styles.shareBtnText}>{shareCopied ? '✓ Copied' : '📋 Copy text'}</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-      <Text style={styles.shareNote}>Shares the camera counts only, never your route or locations.</Text>
 
       {/* ── Real-Time Navigation & Turn-by-Turn ── */}
       <View style={styles.navSection}>
@@ -596,17 +529,6 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center' },
   statVal: { color: '#fff', fontSize: 22, fontWeight: '700' },
   statLabel: { color: '#bbb', fontSize: 10.5, textAlign: 'center', marginTop: 2, fontWeight: '500' },
-
-  shareRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-  shareBtn: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#1b2a4a', borderRadius: 8, paddingVertical: 9,
-    borderWidth: 1, borderColor: '#3a5488',
-  },
-  shareBtnPrimary: { backgroundColor: '#2a4f8a', borderColor: '#4A90D9' },
-  shareBtnFacebook: { backgroundColor: '#1877F2', borderColor: '#1877F2' },
-  shareBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  shareNote: { color: '#777', fontSize: 10, textAlign: 'center', marginBottom: 10 },
 
   legend: { flexDirection: 'row', justifyContent: 'space-around' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
