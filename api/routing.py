@@ -207,17 +207,18 @@ def find_privacy_route(
             ))
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else None
-            body = e.response.text[:200] if e.response is not None else ""
-            log.info(f"Privacy search stopped at iteration {iterations}: Valhalla {status} {body}")
+            # Never log request/response bodies: they can contain trip coordinates.
+            log.info(f"Privacy search stopped at iteration {iterations}: Valhalla HTTP {status}")
             stop_reason = "no_path" if status == 400 else "valhalla_error"
             break
         except requests.RequestException as e:
-            log.warning(f"Privacy search stopped at iteration {iterations}: {e}")
+            log.warning(f"Privacy search stopped at iteration {iterations}: {type(e).__name__}")
             stop_reason = "valhalla_error"
             break
 
+    # Never log origin/destination. Trip endpoints are the most sensitive data we handle.
     log.info(
-        f"Privacy route {origin} → {destination}: {len(best_cams)} cameras on best route, "
+        f"Privacy route: {len(best_cams)} cameras on best route, "
         f"{len(excluded)} excluded, {iterations} iterations, stop={stop_reason}"
     )
     return {

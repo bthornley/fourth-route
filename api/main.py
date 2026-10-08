@@ -314,13 +314,17 @@ def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: 
 def verify_admin_token(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
     authorization: str | None = Header(default=None),
-    admin_token: str | None = Query(default=None),
 ) -> bool:
     """
-    Validate admin credentials via Header (X-Admin-Token or Authorization: Bearer <token>)
-    or URL query parameter (for backwards compatibility).
+    Validate admin credentials via Header (X-Admin-Token or Authorization: Bearer <token>).
+
+    Fails closed: if ADMIN_TOKEN is not configured, admin endpoints are disabled.
+    (There is deliberately no default. A default token in a public repo is a public token.)
+    Query-parameter tokens are not accepted because URLs end up in access logs.
     """
-    expected_token = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+    expected_token = os.getenv("ADMIN_TOKEN")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="Admin endpoints are disabled")
 
     token = x_admin_token
     if not token and authorization:
@@ -328,8 +332,6 @@ def verify_admin_token(
             token = authorization[7:].strip()
         else:
             token = authorization.strip()
-    if not token and admin_token:
-        token = admin_token
 
     if not token or not hmac.compare_digest(token, expected_token):
         raise HTTPException(status_code=401, detail="Unauthorized admin token")
@@ -606,7 +608,7 @@ def route_compare(req: RouteRequest, db=Depends(get_db)):
             "route": privacy["route"],
         }
     except Exception as e:
-        log.warning(f"Privacy routing failed: {e}")
+        log.warning(f"Privacy routing failed: {type(e).__name__}")
         avoiding_result = None
 
     # Compute overhead

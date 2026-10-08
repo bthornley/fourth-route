@@ -132,12 +132,20 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
       });
 
       // Click → popup
+      // Operator names come from OpenStreetMap, which anyone can edit, so never inject them
+      // as HTML. Build the popup from text nodes (prevents stored XSS).
       m.on('click', 'cameras-dot', (e) => {
         const props = e.features?.[0]?.properties ?? {};
         const coords = (e.features?.[0]?.geometry as any).coordinates;
+        const el = document.createElement('div');
+        const title = document.createElement('b');
+        title.textContent = String(props.operator ?? 'Unknown ALPR');
+        el.appendChild(title);
+        el.appendChild(document.createElement('br'));
+        el.appendChild(document.createTextNode(`conf: ${String(props.confidence ?? '?')}`));
         new maplibregl.Popup()
           .setLngLat(coords)
-          .setHTML(`<b>${props.operator ?? 'Unknown ALPR'}</b><br>conf: ${props.confidence ?? '?'}`)
+          .setDOMContent(el)
           .addTo(m);
       });
       m.on('mouseenter', 'cameras-dot', () => { m.getCanvas().style.cursor = 'pointer'; });

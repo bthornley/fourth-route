@@ -17,7 +17,9 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
 
 DB_URL = os.getenv("DATABASE_URL")
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "fourthroute-admin-2026")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
+if not ADMIN_TOKEN:
+    raise SystemExit("Set ADMIN_TOKEN in .env (no default; the old default was public)")
 
 if not DB_URL:
     print("❌ Error: DATABASE_URL is not set in environment or .env file.")
