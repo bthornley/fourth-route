@@ -192,3 +192,38 @@ export async function reportCamera(
   if (!res.ok) throw new Error(`Report error: ${res.status}`);
   return res.json();
 }
+
+// ── Geocoding (proxied through our API) ──
+// Address searches go to our API, which forwards them to Nominatim (OpenStreetMap).
+// The browser never contacts Nominatim directly, so OSM never sees users' IPs or which
+// user searched what. POST bodies keep addresses out of URL access logs.
+// There is deliberately NO fallback to calling Nominatim directly if our API is down.
+
+export async function geocodeSearch(q: string, viewbox?: string, signal?: AbortSignal): Promise<any[]> {
+  const call = () => fetch(`${API_BASE}/geocode/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q, viewbox, limit: 5 }),
+    signal,
+  });
+  let res = await call();
+  if (res.status === 503) {
+    // Our API shares one Nominatim allowance (1 req/s) across all users; retry once.
+    await new Promise(r => setTimeout(r, 1100));
+    if (signal?.aborted) return [];
+    res = await call();
+  }
+  if (!res.ok) throw new Error(`Search failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export async function reverseGeocode(lat: number, lon: number): Promise<any | null> {
+  const res = await fetch(`${API_BASE}/geocode/reverse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat, lon }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}

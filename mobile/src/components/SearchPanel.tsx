@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { track } from '@vercel/analytics';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
+import { geocodeSearch, reverseGeocode } from '../services/api';
 
 interface Props {
   onRoute: (
@@ -222,14 +223,8 @@ function useGeocoder(query: string, bbox: string): { results: GeoResult[]; loadi
       setLoading(true);
 
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=us&addressdetails=1&dedupe=1&viewbox=${bbox}`;
-        const res = await fetch(url, {
-          signal: ctrl.signal,
-          headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.org)' },
-        });
-        if (!res.ok) throw new Error('Search failed');
-        const data = await res.json();
-        setResults(Array.isArray(data) ? data : []);
+        const data = await geocodeSearch(q, bbox, ctrl.signal);
+        setResults(data);
       } catch (err: any) {
         if (err.name !== 'AbortError') {
           setResults([]);
@@ -239,7 +234,7 @@ function useGeocoder(query: string, bbox: string): { results: GeoResult[]; loadi
           setLoading(false);
         }
       }
-    }, 250);
+    }, 400); // debounce: fewer requests against the shared 1 req/s geocoding allowance
 
     return () => {
       clearTimeout(timer.current);
@@ -359,12 +354,8 @@ export function SearchPanel({
         const { latitude, longitude } = pos.coords;
         let placeName = 'Current Location';
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
-            { headers: { 'User-Agent': 'fourth-route/1.0 (+https://fourthroute.org)' } }
-          );
-          if (res.ok) {
-            const data = await res.json();
+          const data = await reverseGeocode(latitude, longitude);
+          if (data) {
             const fp = formatPlace(data);
             placeName = fp.main || fp.full || 'Current Location';
           }
@@ -380,7 +371,8 @@ export function SearchPanel({
         });
         setLocLoading(false);
         try {
-          track('use_current_location_success', { lat: latitude, lon: longitude });
+          // Never send coordinates to analytics.
+          track('use_current_location_success');
         } catch {}
       },
       (err) => {
