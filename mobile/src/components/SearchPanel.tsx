@@ -49,13 +49,17 @@ export interface DemoRoute {
   originLon: number;
   destLat: number;
   destLon: number;
+  /** State to select on the map (defaults to 'ca'). */
+  state?: StateKey;
 }
 
+// Verified against the live router on 2026-10-07 (cameras within 40 m of the route,
+// fastest → privacy). Re-check with scratch/demo_candidates.py if the camera DB or router changes.
 export const DEMO_ROUTES: DemoRoute[] = [
   {
     id: 'oakland-fruitvale',
     label: 'Oakland → Fruitvale',
-    badge: '🛡️ 303 avoided',
+    badge: '🛡️ 25 avoided', // 26 → 1, +2.8 min
     originQ: 'Downtown Oakland, CA',
     destQ: 'Fruitvale, Oakland, CA',
     originLat: 37.8044,
@@ -64,37 +68,38 @@ export const DEMO_ROUTES: DemoRoute[] = [
     destLon: -122.2241,
   },
   {
-    id: 'dtla-santa-monica',
-    label: 'DTLA → Santa Monica',
-    badge: '🛡️ 652 avoided',
-    originQ: 'Downtown Los Angeles, CA',
-    destQ: 'Santa Monica, CA',
-    originLat: 34.0522,
-    originLon: -118.2437,
-    destLat: 34.0195,
-    destLon: -118.4912,
+    id: 'pasadena-altadena',
+    label: 'Pasadena → Altadena',
+    badge: '🛡️ 21 avoided', // 22 → 1, 0.7 min faster
+    originQ: 'Pasadena, CA',
+    destQ: 'Altadena, CA',
+    originLat: 34.1478,
+    originLon: -118.1445,
+    destLat: 34.1897,
+    destLon: -118.1312,
   },
   {
-    id: 'irvine-newport',
-    label: 'Irvine → Newport Beach',
-    badge: '🛡️ 429 avoided',
-    originQ: 'Irvine, CA',
-    destQ: 'Newport Beach, CA',
-    originLat: 33.6846,
-    originLon: -117.8265,
-    destLat: 33.6189,
-    destLon: -117.9298,
+    id: 'northpark-cityheights',
+    label: 'North Park → City Hts',
+    badge: '🛡️ 13 avoided', // 13 → 0, 0.4 min faster
+    originQ: 'North Park, San Diego, CA',
+    destQ: 'City Heights, San Diego, CA',
+    originLat: 32.7477,
+    originLon: -117.1295,
+    destLat: 32.7480,
+    destLon: -117.0990,
   },
   {
-    id: 'vegas-strip-fremont',
-    label: 'Vegas Strip → Fremont',
-    badge: '🛡️ Avoid Cameras',
+    id: 'vegas-strip-chinatown',
+    label: 'Vegas Strip → Chinatown',
+    badge: '🛡️ 8 avoided', // 8 → 0, +1.3 min
     originQ: 'Las Vegas Strip, NV',
-    destQ: 'Fremont Street, Las Vegas, NV',
+    destQ: 'Chinatown, Las Vegas, NV',
     originLat: 36.1147,
     originLon: -115.1728,
-    destLat: 36.1699,
-    destLon: -115.1438,
+    destLat: 36.1263,
+    destLon: -115.1990,
+    state: 'nv',
   },
 ];
 
@@ -428,8 +433,9 @@ export function SearchPanel({
       lat: String(demo.destLat),
       lon: String(demo.destLon),
     });
-    if (selectedState !== 'ca') {
-      handleStateSelect('ca');
+    const demoState = demo.state ?? 'ca';
+    if (selectedState !== demoState) {
+      handleStateSelect(demoState);
     }
     onRoute(
       demo.originLat, demo.originLon,
