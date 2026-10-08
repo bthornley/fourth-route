@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, SafeAreaView, Alert, Platform, ScrollView, TouchableOpacity, Linking,
 } from 'react-native';
 import { MapView } from './src/components/MapView.web';
 import { SearchPanel, StateKey, STATE_CONFIG } from './src/components/SearchPanel';
@@ -185,6 +185,9 @@ export default function App() {
                 <Text style={styles.footerLink}>{label}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}>
+              <Text style={[styles.footerLink, { color: '#E8C97A' }]}>☕ Donate</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

@@ -197,6 +197,21 @@ export function AboutPage({ navigate }: Props) {
           </Text>
         </View>
 
+        {/* Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Support</Text>
+          <Text style={styles.sectionTitle}>Help keep Fourth Route online & independent</Text>
+          <Text style={styles.body}>
+            Fourth Route has no corporate sponsors, no ad tracking, and no subscriptions. If this tool helps you navigate with privacy, consider chipping in to help cover monthly server, tile CDN, and routing compute costs:
+          </Text>
+          <TouchableOpacity
+            style={[styles.heroBtn, { alignSelf: 'flex-start', marginTop: 6, marginBottom: 8 }]}
+            onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}
+          >
+            <Text style={styles.heroBtnText}>Support on Ko-fi ☕</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Fourth Route is a free, open-source public interest project.</Text>
@@ -212,6 +227,10 @@ export function AboutPage({ navigate }: Props) {
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => navigate('/contact')}>
               <Text style={styles.footerLink}>Contact</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>·</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}>
+              <Text style={[styles.footerLink, { color: '#E8C97A' }]}>☕ Ko-fi</Text>
             </TouchableOpacity>
             <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL('https://github.com/bthornley/fourth-route')}>
