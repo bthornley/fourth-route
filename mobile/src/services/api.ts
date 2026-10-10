@@ -12,6 +12,45 @@ export interface Camera {
   confidence: number;
 }
 
+export interface CameraAgencyTransparency {
+  camera_id: number;
+  statefp?: string;
+  place_name?: string;
+  county_name?: string;
+  jurisdiction_level?: string;
+  jurisdiction_name?: string;
+  operator?: string;
+  owner_name?: string;
+  owner_type?: string;
+  agency_slug?: string;
+  display_agency_name?: string;
+  agency_type?: string;
+  portal_url?: string;
+  portal_cameras?: number;
+  portal_searches_30d?: number;
+  portal_retention_days?: number;
+  portal_vehicles_captured_30d?: number;
+  portal_hotlist_hits_30d?: number;
+  portal_hotlist_hit_rate?: number;
+  portal_sharing_partners_count?: number;
+  portal_sharing_partners?: string[];
+  portal_prohibited_uses?: string;
+  portal_public_search_audit?: boolean;
+  portal_last_updated?: string;
+  has_verified_portal: boolean;
+  data_attribution: string;
+}
+
+export async function fetchCameraAgency(cameraId: number): Promise<CameraAgencyTransparency | null> {
+  try {
+    const res = await fetch(`${API_BASE}/cameras/${cameraId}/agency`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export interface RouteResult {
   status: 'avoided' | 'fallback';
   cameras_in_corridor: number;

@@ -270,6 +270,103 @@ def get_camera(camera_id: int, db=Depends(get_db)):
     return row
 
 
+@app.get("/cameras/{camera_id}/agency", tags=["Cameras"])
+def get_camera_agency(camera_id: int, db=Depends(get_db)):
+    """
+    Return operating agency and verified transparency portal metadata
+    (retention, 30-day search volume, data sharing reach, prohibited uses).
+    Data attribution: Eyes on Flock (CC BY-SA 4.0).
+    """
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                camera_id,
+                statefp,
+                place_name,
+                county_name,
+                jurisdiction_level,
+                jurisdiction_name,
+                operator,
+                owner_name,
+                owner_type,
+                agency_slug,
+                display_agency_name,
+                agency_type,
+                portal_url,
+                portal_cameras,
+                portal_searches_30d,
+                portal_retention_days,
+                portal_vehicles_captured_30d,
+                portal_hotlist_hits_30d,
+                portal_hotlist_hit_rate,
+                portal_sharing_partners_count,
+                portal_sharing_partners,
+                portal_prohibited_uses,
+                portal_public_search_audit,
+                portal_last_updated,
+                has_verified_portal,
+                data_attribution
+            FROM camera_agency
+            WHERE camera_id = %s
+            """,
+            (camera_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    return row
+
+
+@app.get("/agencies", tags=["Agencies"])
+def list_agencies(
+    state: str | None = Query(default=None, max_length=2, description="Filter by state (e.g. CA, TX, WA)"),
+    q: str | None = Query(default=None, max_length=100, description="Search by agency name or city"),
+    limit: int = Query(default=50, le=500),
+    db=Depends(get_db),
+):
+    """
+    List law enforcement agencies with verified Flock Safety transparency portals.
+    Attribution: Eyes on Flock (CC BY-SA 4.0).
+    """
+    query = """
+        SELECT
+            slug, portal_url, agency_name, city, county, state, agency_type,
+            population, total_cameras, total_searches, data_retention,
+            vehicles_captured, hotlist_hits, hotlist_hit_rate,
+            organization_count, prohibited_uses, data_last_updated,
+            attribution
+        FROM agency_portals
+        WHERE 1=1
+    """
+    params = []
+    if state:
+        query += " AND state = %s"
+        params.append(state.upper())
+    if q:
+        query += " AND (agency_name ILIKE %s OR city ILIKE %s OR county ILIKE %s)"
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q, like_q])
+    query += " ORDER BY total_cameras DESC NULLS LAST, agency_name ASC LIMIT %s"
+    params.append(limit)
+
+    with db.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return {"total": len(rows), "agencies": rows}
+
+
+@app.get("/agencies/{slug}", tags=["Agencies"])
+def get_agency(slug: str, db=Depends(get_db)):
+    """Get full transparency profile and sharing network for a specific agency."""
+    with db.cursor() as cur:
+        cur.execute("SELECT * FROM agency_portals WHERE slug = %s", (slug,))
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Agency portal not found")
+    return row
+
+
 def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: str, notes: str):
     """Best-effort notification via Webhook, Resend, or SMTP if configured."""
     log.info(f"🚨 NEW CAMERA REPORTED [ID #{report_id}]: ({lat}, {lon}) operator={operator}")

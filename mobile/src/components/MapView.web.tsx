@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Camera, CameraLocation, API_BASE } from '../services/api';
+import { Camera, CameraLocation, API_BASE, fetchCameraAgency } from '../services/api';
 
 interface Props {
   privacyLine: [number, number][];
@@ -132,21 +132,145 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
       });
 
       // Click → popup
-      // Operator names come from OpenStreetMap, which anyone can edit, so never inject them
-      // as HTML. Build the popup from text nodes (prevents stored XSS).
-      m.on('click', 'cameras-dot', (e) => {
+      // Displays agency transparency data (retention, searches, sharing network)
+      // from Eyes on Flock under CC BY-SA 4.0.
+      m.on('click', 'cameras-dot', async (e) => {
         const props = e.features?.[0]?.properties ?? {};
         const coords = (e.features?.[0]?.geometry as any).coordinates;
-        const el = document.createElement('div');
-        const title = document.createElement('b');
-        title.textContent = String(props.operator ?? 'Unknown ALPR');
-        el.appendChild(title);
-        el.appendChild(document.createElement('br'));
-        el.appendChild(document.createTextNode(`conf: ${String(props.confidence ?? '?')}`));
-        new maplibregl.Popup()
+        const camId = props.id ? Number(props.id) : null;
+
+        const container = document.createElement('div');
+        container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        container.style.fontSize = '12px';
+        container.style.color = '#0f172a';
+        container.style.minWidth = '230px';
+        container.style.maxWidth = '290px';
+        container.style.padding = '2px';
+
+        const title = document.createElement('div');
+        title.style.fontWeight = '700';
+        title.style.fontSize = '13px';
+        title.style.color = '#0f172a';
+        title.style.marginBottom = '2px';
+        title.textContent = String(props.operator || 'ALPR Camera');
+        container.appendChild(title);
+
+        const sub = document.createElement('div');
+        sub.style.fontSize = '11px';
+        sub.style.color = '#64748b';
+        sub.style.marginBottom = '6px';
+        sub.textContent = 'Loading transparency record...';
+        container.appendChild(sub);
+
+        new maplibregl.Popup({ maxWidth: '320px', closeButton: true })
           .setLngLat(coords)
-          .setDOMContent(el)
+          .setDOMContent(container)
           .addTo(m);
+
+        if (camId) {
+          const agency = await fetchCameraAgency(camId);
+          if (agency) {
+            container.innerHTML = '';
+
+            // Top Header
+            const headerRow = document.createElement('div');
+            headerRow.style.display = 'flex';
+            headerRow.style.alignItems = 'flex-start';
+            headerRow.style.justifyContent = 'space-between';
+            headerRow.style.gap = '6px';
+            headerRow.style.marginBottom = '4px';
+
+            const nameEl = document.createElement('div');
+            nameEl.style.fontWeight = '700';
+            nameEl.style.fontSize = '13px';
+            nameEl.style.color = '#0f172a';
+            nameEl.style.lineHeight = '1.25';
+            nameEl.textContent = agency.display_agency_name || props.operator || 'Law Enforcement Agency';
+            headerRow.appendChild(nameEl);
+
+            if (agency.has_verified_portal) {
+              const badge = document.createElement('span');
+              badge.style.background = '#ecfdf5';
+              badge.style.color = '#059669';
+              badge.style.fontSize = '9px';
+              badge.style.fontWeight = '700';
+              badge.style.padding = '2px 5px';
+              badge.style.borderRadius = '10px';
+              badge.style.border = '1px solid #a7f3d0';
+              badge.style.whiteSpace = 'nowrap';
+              badge.textContent = 'Portal Verified';
+              headerRow.appendChild(badge);
+            }
+            container.appendChild(headerRow);
+
+            // Subtitle
+            const subRow = document.createElement('div');
+            subRow.style.fontSize = '11px';
+            subRow.style.color = '#64748b';
+            subRow.style.marginBottom = '8px';
+            const locText = agency.jurisdiction_name ? `Area: ${agency.jurisdiction_name}` : '';
+            const camText = agency.portal_cameras ? ` · ${agency.portal_cameras} cameras in fleet` : '';
+            subRow.textContent = `${locText}${camText}`.trim() || 'Active surveillance node';
+            container.appendChild(subRow);
+
+            // Stats Grid
+            const grid = document.createElement('div');
+            grid.style.background = '#f8fafc';
+            grid.style.border = '1px solid #e2e8f0';
+            grid.style.borderRadius = '6px';
+            grid.style.padding = '6px 8px';
+            grid.style.marginBottom = '8px';
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = '1fr 1fr';
+            grid.style.gap = '6px';
+            grid.style.fontSize = '11px';
+
+            const retBox = document.createElement('div');
+            retBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">Retention:</span><strong>${agency.portal_retention_days ? `${agency.portal_retention_days} days` : 'Not disclosed'}</strong>`;
+            grid.appendChild(retBox);
+
+            const searchBox = document.createElement('div');
+            searchBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">30d Searches:</span><strong>${agency.portal_searches_30d !== null && agency.portal_searches_30d !== undefined ? agency.portal_searches_30d.toLocaleString() : 'Not disclosed'}</strong>`;
+            grid.appendChild(searchBox);
+
+            const shareBox = document.createElement('div');
+            shareBox.style.gridColumn = 'span 2';
+            shareBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">Data Sharing Reach:</span><strong>${agency.portal_sharing_partners_count !== null && agency.portal_sharing_partners_count !== undefined ? `Shared with ${agency.portal_sharing_partners_count} partner agencies` : 'Local only / Not disclosed'}</strong>`;
+            grid.appendChild(shareBox);
+
+            container.appendChild(grid);
+
+            // Portal link if available
+            if (agency.portal_url) {
+              const link = document.createElement('a');
+              link.href = agency.portal_url;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+              link.style.display = 'block';
+              link.style.textAlign = 'center';
+              link.style.background = '#2563eb';
+              link.style.color = '#ffffff';
+              link.style.fontWeight = '600';
+              link.style.fontSize = '11px';
+              link.style.padding = '5px 8px';
+              link.style.borderRadius = '5px';
+              link.style.textDecoration = 'none';
+              link.style.marginBottom = '6px';
+              link.textContent = 'View Official Transparency Portal ↗';
+              container.appendChild(link);
+            }
+
+            // Attribution footer
+            const attr = document.createElement('div');
+            attr.style.fontSize = '9px';
+            attr.style.color = '#94a3b8';
+            attr.style.textAlign = 'center';
+            attr.textContent = 'Data: Eyes on Flock (CC BY-SA 4.0)';
+            container.appendChild(attr);
+          } else {
+            sub.textContent = 'OSM community verified camera';
+          }
+        }
       });
       m.on('mouseenter', 'cameras-dot', () => { m.getCanvas().style.cursor = 'pointer'; });
       m.on('mouseleave', 'cameras-dot', () => { m.getCanvas().style.cursor = ''; });
@@ -217,6 +341,7 @@ function camerasToGeoJSON(cams: (Camera | CameraLocation)[]) {
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [c.lon, c.lat] },
       properties: {
+        id: (c as Camera).id ?? null,
         operator: c.operator ?? 'Unknown',
         confidence: (c as Camera).confidence ?? null,
       },

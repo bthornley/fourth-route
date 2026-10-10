@@ -56,7 +56,8 @@ VALUES (%s, %s, %s, %s, %s,
 
 
 def main():
-    states = sys.argv[1:] or ["06", "32"]
+    # Default states: CA (06), NV (32), TX (48), AZ (04), WA (53), OR (41)
+    states = sys.argv[1:] or ["06", "32", "48", "04", "53", "41"]
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
     cur = conn.cursor()
 
