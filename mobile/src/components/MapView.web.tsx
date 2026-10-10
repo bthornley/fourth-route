@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { track } from '@vercel/analytics';
 import { Camera, CameraLocation, API_BASE, fetchCameraAgency } from '../services/api';
 
 interface Props {
@@ -20,6 +21,7 @@ const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, flyTo }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const hasTrackedBrowse = useRef(false);
 
   // ── Fly to state when selected ─────────────────────────────────────────────
   useEffect(() => {
@@ -38,6 +40,7 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
       zoom: DEFAULT_ZOOM,
     });
     map.current = m;
+    (window as any)._map = m;
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     m.on('load', () => {
@@ -131,10 +134,30 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         }, 400);
       });
 
+      // Track active map browsing (once per session on user pan or zoom)
+      const trackBrowse = () => {
+        if (!hasTrackedBrowse.current) {
+          hasTrackedBrowse.current = true;
+          try {
+            track('map_browsed');
+          } catch {}
+        }
+      };
+
+      m.on('dragend', trackBrowse);
+      m.on('zoomend', (e: any) => {
+        if (e.originalEvent) {
+          trackBrowse();
+        }
+      });
+
       // Click → popup
       // Displays agency transparency data (retention, searches, sharing network)
       // from Eyes on Flock under CC BY-SA 4.0.
       m.on('click', 'cameras-dot', async (e) => {
+        try {
+          track('camera_inspected');
+        } catch {}
         const props = e.features?.[0]?.properties ?? {};
         const coords = (e.features?.[0]?.geometry as any).coordinates;
         const camId = props.id ? Number(props.id) : null;
@@ -170,6 +193,12 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         if (camId) {
           const agency = await fetchCameraAgency(camId);
           if (agency) {
+            try {
+              track('camera_dossier_viewed', {
+                has_verified_portal: agency.has_verified_portal,
+                agency_type: agency.agency_type || 'unknown'
+              });
+            } catch {}
             container.innerHTML = '';
 
             // Top Header
@@ -257,6 +286,11 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               link.style.textDecoration = 'none';
               link.style.marginBottom = '6px';
               link.textContent = 'View Official Transparency Portal ↗';
+              link.addEventListener('click', () => {
+                try {
+                  track('transparency_portal_opened');
+                } catch {}
+              });
               container.appendChild(link);
             }
 
