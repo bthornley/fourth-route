@@ -23,7 +23,7 @@ interface Props {
   onToggleCollapsed?: (collapsed: boolean) => void;
 }
 
-export type StateKey = 'all' | 'ca' | 'nv' | 'az' | 'wa' | 'or' | 'tx';
+export type StateKey = 'all' | 'ca' | 'nv' | 'tx' | 'ga' | 'il' | 'fl' | 'oh' | 'az' | 'wa' | 'or';
 
 export const STATE_CONFIG: Record<StateKey, {
   label: string;
@@ -31,13 +31,17 @@ export const STATE_CONFIG: Record<StateKey, {
   center: { lng: number; lat: number; zoom: number };
   flag: string;
 }> = {
-  all: { label: 'All',  flag: '🌎', bbox: '-124.8,25.8,-93.5,49.0',   center: { lng: -110.0, lat: 39.0, zoom: 5 } },
+  all: { label: 'All',  flag: '🌎', bbox: '-125.0,24.0,-66.5,50.0',   center: { lng: -98.5,  lat: 39.5, zoom: 4.2 } },
   ca:  { label: 'CA',   flag: '🌅', bbox: '-124.5,32.5,-114.1,42.0',   center: { lng: -119.4, lat: 36.7, zoom: 6 } },
   nv:  { label: 'NV',   flag: '🎰', bbox: '-120.0,35.0,-114.0,42.0',   center: { lng: -115.17, lat: 36.13, zoom: 11 } },
+  tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
+  ga:  { label: 'GA',   flag: '🍑', bbox: '-85.6,30.3,-80.8,35.0',     center: { lng: -84.39, lat: 33.75, zoom: 10 } },
+  il:  { label: 'IL',   flag: '🏙️', bbox: '-91.5,36.9,-87.5,42.5',     center: { lng: -87.65, lat: 41.85, zoom: 10 } },
+  fl:  { label: 'FL',   flag: '🌴', bbox: '-87.6,24.5,-80.0,31.0',     center: { lng: -81.52, lat: 28.54, zoom: 8 } },
+  oh:  { label: 'OH',   flag: '🌰', bbox: '-84.8,38.4,-80.5,42.0',     center: { lng: -82.99, lat: 39.96, zoom: 9 } },
   az:  { label: 'AZ',   flag: '🌵', bbox: '-114.81,31.33,-109.04,37.0', center: { lng: -112.074, lat: 33.4484, zoom: 10 } },
   wa:  { label: 'WA',   flag: '⚖️', bbox: '-124.8,45.5,-116.9,49.0',   center: { lng: -120.5, lat: 47.5, zoom: 7 } },
   or:  { label: 'OR',   flag: '🏛️', bbox: '-124.6,41.9,-116.5,46.3',   center: { lng: -120.6, lat: 43.8, zoom: 7 } },
-  tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
 };
 
 export interface DemoRoute {

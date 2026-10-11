@@ -103,9 +103,8 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         },
       });
 
-      // Fetch cameras via bbox endpoint (no limit) covering all 4 states
-      const ALL_BBOX = { min_lon: -124.5, min_lat: 25.8, max_lon: -93.5, max_lat: 49.0 };
-      const fetchCamerasBbox = (bbox: typeof ALL_BBOX) =>
+      // Dynamic camera loading by bounding box
+      const fetchCamerasBbox = (bbox: { min_lon: number; min_lat: number; max_lon: number; max_lat: number }) =>
         fetch(`${API_BASE}/cameras/bbox`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,20 +117,27 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
           })
           .catch(() => {});
 
-      // Load all states on init
-      fetchCamerasBbox(ALL_BBOX);
+      // Helper to fetch current viewport cameras with a 20% spatial padding buffer
+      const loadViewportCameras = () => {
+        const b = m.getBounds();
+        const spanLon = b.getEast() - b.getWest();
+        const spanLat = b.getNorth() - b.getSouth();
+        fetchCamerasBbox({
+          min_lon: Math.max(b.getWest() - spanLon * 0.2, -180),
+          min_lat: Math.max(b.getSouth() - spanLat * 0.2, -90),
+          max_lon: Math.min(b.getEast() + spanLon * 0.2, 180),
+          max_lat: Math.min(b.getNorth() + spanLat * 0.2, 90),
+        });
+      };
 
-      // Reload by viewport on moveend (debounced) for performance at high zoom
+      // Load initial viewport cameras on start
+      loadViewportCameras();
+
+      // Reload by viewport on moveend (debounced) for fast dynamic browsing across all 50 states
       let moveTimer: ReturnType<typeof setTimeout>;
       m.on('moveend', () => {
         clearTimeout(moveTimer);
-        moveTimer = setTimeout(() => {
-          const b = m.getBounds();
-          fetchCamerasBbox({
-            min_lon: b.getWest(), min_lat: b.getSouth(),
-            max_lon: b.getEast(), max_lat: b.getNorth(),
-          });
-        }, 400);
+        moveTimer = setTimeout(loadViewportCameras, 350);
       });
 
       // Track active map browsing (once per session on user pan or zoom)

@@ -26,8 +26,15 @@ import sys
 import zipfile
 
 import psycopg2
+from psycopg2.extras import execute_batch
 import requests
 import shapefile  # pyshp
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+except ImportError:
+    pass
 
 BASE = "https://www2.census.gov/geo/tiger/GENZ2023/shp"
 INCORPORATED_LSAD = {"25", "43"}  # city, town
@@ -56,8 +63,14 @@ VALUES (%s, %s, %s, %s, %s,
 
 
 def main():
-    # Default states: CA (06), NV (32), TX (48), AZ (04), WA (53), OR (41)
-    states = sys.argv[1:] or ["06", "32", "48", "04", "53", "41"]
+    # Default states: top 30 states by ALPR camera & transparency portal density
+    states = sys.argv[1:] or [
+        "06", "32", "48", "04", "53", "41",  # CA, NV, TX, AZ, WA, OR
+        "13", "12", "17", "37", "39", "26",  # GA, FL, IL, NC, OH, MI
+        "51", "08", "18", "47", "29", "27",  # VA, CO, IN, TN, MO, MN
+        "55", "45", "01", "42", "36", "24",  # WI, SC, AL, PA, NY, MD
+        "21", "22", "40", "49", "19", "20",  # KY, LA, OK, UT, IA, KS
+    ]
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
     cur = conn.cursor()
 
@@ -68,21 +81,30 @@ def main():
             namelsad text, lsad text, geom geometry(MultiPolygon, 4326) NOT NULL)""")
 
     n_place = 0
-    for st in states:
+    sql_place = INSERT.format(table="jurisdiction_place_stage")
+    for i, st in enumerate(states, 1):
+        batch = []
         for rec, geo in records(fetch_shapefile(f"cb_2023_{st}_place_500k")):
             if rec["lsad"] not in INCORPORATED_LSAD:
                 continue
-            cur.execute(INSERT.format(table="jurisdiction_place_stage"),
-                        (rec["geoid"], rec["statefp"], rec["name"], rec["namelsad"], rec["lsad"], json.dumps(geo)))
-            n_place += 1
+            batch.append((rec["geoid"], rec["statefp"], rec["name"], rec["namelsad"], rec["lsad"], json.dumps(geo)))
+        if batch:
+            execute_batch(cur, sql_place, batch, page_size=1000)
+            n_place += len(batch)
+        print(f"[{i}/{len(states)}] State {st}: {len(batch)} places inserted", flush=True)
 
     n_county = 0
+    county_batch = []
+    sql_county = INSERT.format(table="jurisdiction_county_stage")
+    print("Fetching US counties...", flush=True)
     for rec, geo in records(fetch_shapefile("cb_2023_us_county_500k")):
         if rec["statefp"] not in states:
             continue
-        cur.execute(INSERT.format(table="jurisdiction_county_stage"),
-                    (rec["geoid"], rec["statefp"], rec["name"], rec["namelsad"], rec["lsad"], json.dumps(geo)))
-        n_county += 1
+        county_batch.append((rec["geoid"], rec["statefp"], rec["name"], rec["namelsad"], rec["lsad"], json.dumps(geo)))
+    if county_batch:
+        execute_batch(cur, sql_county, county_batch, page_size=1000)
+        n_county = len(county_batch)
+    print(f"Counties inserted: {n_county}", flush=True)
 
     # Atomic swap. The camera_jurisdiction view depends on these tables, so drop it
     # first and recreate it from db/jurisdictions.sql afterwards.
