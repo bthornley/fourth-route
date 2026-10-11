@@ -174,20 +174,39 @@ def list_cameras(
 
 @app.post("/cameras/bbox", response_model=list[Camera], tags=["Cameras"])
 def cameras_in_bbox(query: BBoxQuery, db=Depends(get_db)):
-    """Return all cameras within a lat/lon bounding box."""
+    """Return all cameras within a lat/lon bounding box.
+    Caps at 8,000 for continental/macro views to maintain 60fps rendering.
+    Full unconstrained fidelity when zoomed into state or metro level.
+    """
+    span_lon = query.max_lon - query.min_lon
     with db.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id,
-                   ST_Y(geom::geometry) AS lat,
-                   ST_X(geom::geometry) AS lon,
-                   source, operator, direction, confidence
-            FROM cameras
-            WHERE geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
-            ORDER BY confidence DESC
-            """,
-            (query.min_lon, query.min_lat, query.max_lon, query.max_lat),
-        )
+        if span_lon > 8.0:
+            cur.execute(
+                """
+                SELECT id,
+                       ST_Y(geom::geometry) AS lat,
+                       ST_X(geom::geometry) AS lon,
+                       source, operator, direction, confidence
+                FROM cameras
+                WHERE geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+                ORDER BY confidence DESC
+                LIMIT 8000
+                """,
+                (query.min_lon, query.min_lat, query.max_lon, query.max_lat),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id,
+                       ST_Y(geom::geometry) AS lat,
+                       ST_X(geom::geometry) AS lon,
+                       source, operator, direction, confidence
+                FROM cameras
+                WHERE geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+                ORDER BY confidence DESC
+                """,
+                (query.min_lon, query.min_lat, query.max_lon, query.max_lat),
+            )
         return cur.fetchall()
 
 

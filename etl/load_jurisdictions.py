@@ -40,15 +40,24 @@ BASE = "https://www2.census.gov/geo/tiger/GENZ2023/shp"
 INCORPORATED_LSAD = {"25", "43"}  # city, town
 
 
-def fetch_shapefile(name: str) -> shapefile.Reader:
-    r = requests.get(f"{BASE}/{name}.zip", timeout=120)
-    r.raise_for_status()
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    parts = {ext: io.BytesIO(z.read(f"{name}.{ext}")) for ext in ("shp", "shx", "dbf")}
-    return shapefile.Reader(shp=parts["shp"], shx=parts["shx"], dbf=parts["dbf"])
+def fetch_shapefile(name: str):
+    try:
+        r = requests.get(f"{BASE}/{name}.zip", timeout=60, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        if not r.content.startswith(b"PK"):
+            print(f"Skipping {name}: not a valid zip archive ({len(r.content)} bytes)", flush=True)
+            return None
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        parts = {ext: io.BytesIO(z.read(f"{name}.{ext}")) for ext in ("shp", "shx", "dbf")}
+        return shapefile.Reader(shp=parts["shp"], shx=parts["shx"], dbf=parts["dbf"])
+    except Exception as e:
+        print(f"Failed to fetch {name}: {e}", flush=True)
+        return None
 
 
-def records(reader: shapefile.Reader):
+def records(reader):
+    if not reader:
+        return
     fields = [f[0].lower() for f in reader.fields[1:]]
     for sr in reader.iterShapeRecords():
         yield dict(zip(fields, sr.record)), sr.shape.__geo_interface__
@@ -106,9 +115,10 @@ def main():
         n_county = len(county_batch)
     print(f"Counties inserted: {n_county}", flush=True)
 
-    # Atomic swap. The camera_jurisdiction view depends on these tables, so drop it
-    # first and recreate it from db/jurisdictions.sql afterwards.
-    cur.execute("DROP VIEW IF EXISTS camera_jurisdiction")
+    # Atomic swap. The camera_jurisdiction and camera_agency views depend on these tables,
+    # so drop them first with CASCADE and recreate them afterwards.
+    cur.execute("DROP VIEW IF EXISTS camera_agency CASCADE")
+    cur.execute("DROP VIEW IF EXISTS camera_jurisdiction CASCADE")
     for kind in ("place", "county"):
         cur.execute(f"DROP TABLE IF EXISTS jurisdiction_{kind}")
         cur.execute(f"ALTER TABLE jurisdiction_{kind}_stage RENAME TO jurisdiction_{kind}")
@@ -119,9 +129,10 @@ def main():
     cur.execute("COMMENT ON TABLE jurisdiction_county IS "
                 "'US Census 2023 cartographic boundaries (public domain): counties'")
 
-    sql_path = os.path.join(os.path.dirname(__file__), "..", "db", "jurisdictions.sql")
-    with open(sql_path) as f:
-        cur.execute(f.read())
+    for sql_name in ("jurisdictions.sql", "agency_portals.sql"):
+        sql_path = os.path.join(os.path.dirname(__file__), "..", "db", sql_name)
+        with open(sql_path) as f:
+            cur.execute(f.read())
 
     conn.commit()
     print(f"Loaded {n_place} incorporated places and {n_county} counties for states {states}.")
