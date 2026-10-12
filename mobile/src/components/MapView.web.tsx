@@ -38,6 +38,7 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
       style: MAP_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
+      clickTolerance: 6,
     });
     map.current = m;
     (window as any)._map = m;
@@ -79,16 +80,26 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         paint: { 'line-color': '#3b82f6', 'line-width': 5 },
       });
 
-      // Camera dots — load ALL cameras eagerly so they show before routing
+      // Camera dots — dynamic zoom-scaled radius to avoid visual clutter on mobile
       m.addSource('cameras', { type: 'geojson', data: emptyPoints() });
       m.addLayer({
         id: 'cameras-halo',
         type: 'circle',
         source: 'cameras',
         paint: {
-          'circle-radius': 14,
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            5, 3.5,
+            9, 7.0,
+            13, 13.0,
+          ],
           'circle-color': '#E74C3C',
-          'circle-opacity': 0.18,
+          'circle-opacity': [
+            'interpolate', ['linear'], ['zoom'],
+            5, 0.03,
+            8, 0.07,
+            12, 0.16,
+          ],
         },
       });
       m.addLayer({
@@ -96,10 +107,24 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         type: 'circle',
         source: 'cameras',
         paint: {
-          'circle-radius': 6,
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            4, 1.8,
+            7, 2.6,
+            10, 4.0,
+            13, 5.5,
+            16, 7.5,
+          ],
           'circle-color': '#E74C3C',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
+          'circle-stroke-width': [
+            'interpolate', ['linear'], ['zoom'],
+            4, 0.4,
+            7, 0.8,
+            11, 1.4,
+            14, 2.0,
+          ],
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 0.92,
         },
       });
 

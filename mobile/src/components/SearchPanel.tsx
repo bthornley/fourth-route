@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ActivityIndicator, StyleSheet, Platform,
+  ActivityIndicator, StyleSheet, Platform, ScrollView,
 } from 'react-native';
 import { track } from '@vercel/analytics';
 import { VehicleType, VEHICLE_PROFILES } from '../services/fuel';
@@ -518,20 +518,26 @@ export function SearchPanel({
       </View>
       <Text style={styles.tagline}>Navigate within your 4th Amendment rights</Text>
 
-      {/* State selector chips */}
-      <View style={styles.stateRow}>
+      {/* State selector chips — single clean horizontal scroll row for mobile */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.stateScrollContent}
+        style={styles.stateScrollView}
+      >
         {(Object.keys(STATE_CONFIG) as StateKey[]).map(s => (
           <TouchableOpacity
             key={s}
             style={[styles.stateChip, selectedState === s && styles.stateChipActive]}
             onPress={() => handleStateSelect(s)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.stateChipText, selectedState === s && styles.stateChipTextActive]}>
               {STATE_CONFIG[s].flag} {STATE_CONFIG[s].label}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Region routing availability notice */}
       {selectedState !== 'ca' && selectedState !== 'nv' && (
@@ -760,11 +766,37 @@ const styles = StyleSheet.create({
   },
   title:    { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
   tagline:  { color: '#E8C97A', fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: 6, letterSpacing: 0.2 },
-  stateRow: { flexDirection: 'row', justifyContent: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 8 },
-  stateChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#2a2a4a', backgroundColor: '#111127' },
-  stateChipActive: { borderColor: '#E8C97A', backgroundColor: '#E8C97A22' },
-  stateChipText: { color: '#555', fontSize: 10, fontWeight: '500' },
-  stateChipTextActive: { color: '#E8C97A', fontWeight: '700' },
+  stateScrollView: {
+    maxHeight: 34,
+    marginBottom: 8,
+  },
+  stateScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 2,
+  },
+  stateChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+    backgroundColor: '#111127',
+  },
+  stateChipActive: {
+    borderColor: '#E8C97A',
+    backgroundColor: '#E8C97A22',
+  },
+  stateChipText: {
+    color: '#777',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  stateChipTextActive: {
+    color: '#E8C97A',
+    fontWeight: '700',
+  },
   stateNotice: {
     backgroundColor: '#111127',
     borderWidth: 1,
