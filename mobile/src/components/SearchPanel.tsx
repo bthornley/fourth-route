@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, StyleSheet, Platform, ScrollView,
@@ -23,26 +23,76 @@ interface Props {
   onToggleCollapsed?: (collapsed: boolean) => void;
 }
 
-export type StateKey = 'all' | 'ca' | 'nv' | 'tx' | 'ga' | 'il' | 'fl' | 'oh' | 'az' | 'wa' | 'or';
+export type StateKey =
+  | 'all' | 'al' | 'ak' | 'az' | 'ar' | 'ca' | 'co' | 'ct' | 'de' | 'dc'
+  | 'fl' | 'ga' | 'hi' | 'id' | 'il' | 'in' | 'ia' | 'ks' | 'ky' | 'la'
+  | 'me' | 'md' | 'ma' | 'mi' | 'mn' | 'ms' | 'mo' | 'mt' | 'ne' | 'nv'
+  | 'nh' | 'nj' | 'nm' | 'ny' | 'nc' | 'nd' | 'oh' | 'ok' | 'or' | 'pa'
+  | 'ri' | 'sc' | 'sd' | 'tn' | 'tx' | 'ut' | 'vt' | 'va' | 'wa' | 'wv'
+  | 'wi' | 'wy';
 
 export const STATE_CONFIG: Record<StateKey, {
   label: string;
+  name: string;
   bbox: string;           // west,south,east,north for Nominatim
   center: { lng: number; lat: number; zoom: number };
   flag: string;
 }> = {
-  all: { label: 'All',  flag: '🌎', bbox: '-125.0,24.0,-66.5,50.0',   center: { lng: -98.5,  lat: 39.5, zoom: 4.2 } },
-  ca:  { label: 'CA',   flag: '🌅', bbox: '-124.5,32.5,-114.1,42.0',   center: { lng: -119.4, lat: 36.7, zoom: 6 } },
-  nv:  { label: 'NV',   flag: '🎰', bbox: '-120.0,35.0,-114.0,42.0',   center: { lng: -115.17, lat: 36.13, zoom: 11 } },
-  tx:  { label: 'TX',   flag: '🤠', bbox: '-106.7,25.8,-93.5,36.5',    center: { lng: -99.0,  lat: 31.0, zoom: 6 } },
-  ga:  { label: 'GA',   flag: '🍑', bbox: '-85.6,30.3,-80.8,35.0',     center: { lng: -84.39, lat: 33.75, zoom: 10 } },
-  il:  { label: 'IL',   flag: '🏙️', bbox: '-91.5,36.9,-87.5,42.5',     center: { lng: -87.65, lat: 41.85, zoom: 10 } },
-  fl:  { label: 'FL',   flag: '🌴', bbox: '-87.6,24.5,-80.0,31.0',     center: { lng: -81.52, lat: 28.54, zoom: 8 } },
-  oh:  { label: 'OH',   flag: '🌰', bbox: '-84.8,38.4,-80.5,42.0',     center: { lng: -82.99, lat: 39.96, zoom: 9 } },
-  az:  { label: 'AZ',   flag: '🌵', bbox: '-114.81,31.33,-109.04,37.0', center: { lng: -112.074, lat: 33.4484, zoom: 10 } },
-  wa:  { label: 'WA',   flag: '⚖️', bbox: '-124.8,45.5,-116.9,49.0',   center: { lng: -120.5, lat: 47.5, zoom: 7 } },
-  or:  { label: 'OR',   flag: '🏛️', bbox: '-124.6,41.9,-116.5,46.3',   center: { lng: -120.6, lat: 43.8, zoom: 7 } },
+  all: { label: 'All', name: 'United States', flag: '🌎', bbox: '-125.0,24.0,-66.5,50.0', center: { lng: -98.5, lat: 39.5, zoom: 4.2 } },
+  al: { label: 'AL', name: 'Alabama', flag: '🌲', bbox: '-88.47,30.22,-84.89,35.01', center: { lng: -86.90, lat: 32.31, zoom: 7.0 } },
+  ak: { label: 'AK', name: 'Alaska', flag: '❄️', bbox: '-179.15,51.21,-129.98,71.39', center: { lng: -152.40, lat: 64.20, zoom: 4.5 } },
+  az: { label: 'AZ', name: 'Arizona', flag: '🌵', bbox: '-114.81,31.33,-109.04,37.00', center: { lng: -112.07, lat: 33.45, zoom: 8.0 } },
+  ar: { label: 'AR', name: 'Arkansas', flag: '💎', bbox: '-94.62,33.00,-89.64,36.50', center: { lng: -92.29, lat: 34.75, zoom: 7.5 } },
+  ca: { label: 'CA', name: 'California', flag: '🌅', bbox: '-124.48,32.53,-114.13,42.01', center: { lng: -119.42, lat: 36.78, zoom: 6.2 } },
+  co: { label: 'CO', name: 'Colorado', flag: '🏔️', bbox: '-109.06,36.99,-102.04,41.00', center: { lng: -104.99, lat: 39.74, zoom: 7.5 } },
+  ct: { label: 'CT', name: 'Connecticut', flag: '⚓', bbox: '-73.73,40.98,-71.79,42.05', center: { lng: -72.68, lat: 41.60, zoom: 9.0 } },
+  de: { label: 'DE', name: 'Delaware', flag: '🐔', bbox: '-75.79,38.45,-75.05,39.84', center: { lng: -75.53, lat: 39.16, zoom: 9.0 } },
+  dc: { label: 'DC', name: 'District of Columbia', flag: '🏛️', bbox: '-77.12,38.79,-76.91,38.99', center: { lng: -77.04, lat: 38.91, zoom: 11.5 } },
+  fl: { label: 'FL', name: 'Florida', flag: '🌴', bbox: '-87.63,24.52,-80.03,31.00', center: { lng: -81.52, lat: 28.54, zoom: 7.0 } },
+  ga: { label: 'GA', name: 'Georgia', flag: '🍑', bbox: '-85.61,30.36,-80.84,35.00', center: { lng: -84.39, lat: 33.75, zoom: 7.5 } },
+  hi: { label: 'HI', name: 'Hawaii', flag: '🌺', bbox: '-160.25,18.91,-154.81,22.24', center: { lng: -157.86, lat: 21.31, zoom: 7.5 } },
+  id: { label: 'ID', name: 'Idaho', flag: '🥔', bbox: '-117.24,41.99,-111.04,49.00', center: { lng: -116.20, lat: 43.62, zoom: 6.8 } },
+  il: { label: 'IL', name: 'Illinois', flag: '🏙️', bbox: '-91.51,36.97,-87.50,42.51', center: { lng: -87.65, lat: 41.85, zoom: 7.5 } },
+  in: { label: 'IN', name: 'Indiana', flag: '🏎️', bbox: '-88.10,37.77,-84.78,41.76', center: { lng: -86.16, lat: 39.77, zoom: 7.5 } },
+  ia: { label: 'IA', name: 'Iowa', flag: '🌽', bbox: '-96.64,40.38,-90.14,43.50', center: { lng: -93.61, lat: 41.59, zoom: 7.5 } },
+  ks: { label: 'KS', name: 'Kansas', flag: '🌻', bbox: '-102.05,36.99,-94.59,40.00', center: { lng: -96.73, lat: 38.53, zoom: 7.2 } },
+  ky: { label: 'KY', name: 'Kentucky', flag: '🐎', bbox: '-89.57,36.50,-81.96,39.15', center: { lng: -84.88, lat: 38.20, zoom: 7.5 } },
+  la: { label: 'LA', name: 'Louisiana', flag: '⚜️', bbox: '-94.04,28.93,-88.82,33.02', center: { lng: -91.19, lat: 30.45, zoom: 7.5 } },
+  me: { label: 'ME', name: 'Maine', flag: '🦞', bbox: '-71.08,42.98,-66.95,47.46', center: { lng: -69.78, lat: 44.31, zoom: 7.0 } },
+  md: { label: 'MD', name: 'Maryland', flag: '🦀', bbox: '-79.49,37.91,-75.05,39.72', center: { lng: -76.61, lat: 39.05, zoom: 8.0 } },
+  ma: { label: 'MA', name: 'Massachusetts', flag: '🏛️', bbox: '-73.51,41.24,-69.93,42.89', center: { lng: -71.06, lat: 42.36, zoom: 8.5 } },
+  mi: { label: 'MI', name: 'Michigan', flag: '🚗', bbox: '-90.42,41.70,-82.41,48.24', center: { lng: -84.56, lat: 42.73, zoom: 7.0 } },
+  mn: { label: 'MN', name: 'Minnesota', flag: '🛶', bbox: '-97.24,43.50,-89.49,49.38', center: { lng: -93.10, lat: 44.95, zoom: 6.8 } },
+  ms: { label: 'MS', name: 'Mississippi', flag: '🎸', bbox: '-91.66,30.17,-88.10,34.99', center: { lng: -90.18, lat: 32.30, zoom: 7.2 } },
+  mo: { label: 'MO', name: 'Missouri', flag: '🏛️', bbox: '-95.77,35.99,-89.10,40.61', center: { lng: -92.17, lat: 38.58, zoom: 7.2 } },
+  mt: { label: 'MT', name: 'Montana', flag: '🏔️', bbox: '-116.05,44.36,-104.04,49.00', center: { lng: -112.04, lat: 46.59, zoom: 6.5 } },
+  ne: { label: 'NE', name: 'Nebraska', flag: '🌾', bbox: '-104.05,40.00,-95.31,43.00', center: { lng: -96.70, lat: 40.81, zoom: 7.0 } },
+  nv: { label: 'NV', name: 'Nevada', flag: '🎰', bbox: '-120.00,35.00,-114.04,42.00', center: { lng: -115.17, lat: 36.13, zoom: 7.0 } },
+  nh: { label: 'NH', name: 'New Hampshire', flag: '🍁', bbox: '-72.56,42.70,-70.70,45.31', center: { lng: -71.54, lat: 43.21, zoom: 7.8 } },
+  nj: { label: 'NJ', name: 'New Jersey', flag: '🏖️', bbox: '-75.56,38.93,-73.89,41.36', center: { lng: -74.41, lat: 40.06, zoom: 8.2 } },
+  nm: { label: 'NM', name: 'New Mexico', flag: '☀️', bbox: '-109.05,31.33,-103.00,37.00', center: { lng: -105.94, lat: 35.69, zoom: 7.0 } },
+  ny: { label: 'NY', name: 'New York', flag: '🗽', bbox: '-79.76,40.50,-71.86,45.02', center: { lng: -74.00, lat: 40.71, zoom: 7.2 } },
+  nc: { label: 'NC', name: 'North Carolina', flag: '✈️', bbox: '-84.32,33.84,-75.46,36.59', center: { lng: -78.64, lat: 35.78, zoom: 7.2 } },
+  nd: { label: 'ND', name: 'North Dakota', flag: '🦬', bbox: '-104.05,45.94,-96.55,49.00', center: { lng: -100.78, lat: 46.81, zoom: 6.8 } },
+  oh: { label: 'OH', name: 'Ohio', flag: '🌰', bbox: '-84.82,38.40,-80.52,42.00', center: { lng: -82.99, lat: 39.96, zoom: 7.5 } },
+  ok: { label: 'OK', name: 'Oklahoma', flag: '🌪️', bbox: '-103.00,33.62,-94.43,37.00', center: { lng: -97.52, lat: 35.47, zoom: 7.2 } },
+  or: { label: 'OR', name: 'Oregon', flag: '🌲', bbox: '-124.57,41.99,-116.46,46.29', center: { lng: -122.68, lat: 45.52, zoom: 7.0 } },
+  pa: { label: 'PA', name: 'Pennsylvania', flag: '🔔', bbox: '-80.52,39.72,-74.69,42.27', center: { lng: -76.88, lat: 40.27, zoom: 7.5 } },
+  ri: { label: 'RI', name: 'Rhode Island', flag: '⛵', bbox: '-71.86,41.15,-71.12,42.02', center: { lng: -71.41, lat: 41.82, zoom: 9.5 } },
+  sc: { label: 'SC', name: 'South Carolina', flag: '🌴', bbox: '-83.35,32.03,-78.54,35.22', center: { lng: -81.04, lat: 34.00, zoom: 7.8 } },
+  sd: { label: 'SD', name: 'South Dakota', flag: '🗿', bbox: '-104.06,42.48,-96.44,45.95', center: { lng: -100.35, lat: 44.37, zoom: 6.8 } },
+  tn: { label: 'TN', name: 'Tennessee', flag: '🎸', bbox: '-90.31,34.98,-81.65,36.68', center: { lng: -86.78, lat: 36.16, zoom: 7.2 } },
+  tx: { label: 'TX', name: 'Texas', flag: '🤠', bbox: '-106.65,25.84,-93.51,36.50', center: { lng: -97.74, lat: 30.27, zoom: 6.2 } },
+  ut: { label: 'UT', name: 'Utah', flag: '⛷️', bbox: '-114.05,37.00,-109.04,42.00', center: { lng: -111.89, lat: 40.76, zoom: 7.0 } },
+  vt: { label: 'VT', name: 'Vermont', flag: '🍁', bbox: '-73.44,42.73,-71.50,45.02', center: { lng: -72.58, lat: 44.26, zoom: 7.8 } },
+  va: { label: 'VA', name: 'Virginia', flag: '🏛️', bbox: '-83.68,36.54,-75.24,39.47', center: { lng: -77.44, lat: 37.54, zoom: 7.5 } },
+  wa: { label: 'WA', name: 'Washington', flag: '🌲', bbox: '-124.85,45.54,-116.92,49.00', center: { lng: -122.33, lat: 47.61, zoom: 7.0 } },
+  wv: { label: 'WV', name: 'West Virginia', flag: '⛰️', bbox: '-82.64,37.20,-77.72,40.64', center: { lng: -81.63, lat: 38.35, zoom: 7.5 } },
+  wi: { label: 'WI', name: 'Wisconsin', flag: '🧀', bbox: '-92.89,42.49,-86.80,47.08', center: { lng: -89.40, lat: 43.07, zoom: 7.0 } },
+  wy: { label: 'WY', name: 'Wyoming', flag: '🦬', bbox: '-111.06,40.99,-104.05,45.00', center: { lng: -104.82, lat: 41.14, zoom: 6.8 } },
 };
+
+export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'fl', 'oh', 'az', 'wa', 'or'];
 
 export interface DemoRoute {
   id: string;
@@ -328,6 +378,8 @@ export function SearchPanel({
   collapsed: controlledCollapsed, onToggleCollapsed,
 }: Props) {
   const [selectedState, setSelectedState] = useState<StateKey>('ca');
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [stateSearchQuery, setStateSearchQuery] = useState('');
   const [originQ, setOriginQ] = useState('');
   const [destQ,   setDestQ]   = useState('');
   const [origin,  setOrigin]  = useState<GeoResult | null>(null);
@@ -395,7 +447,23 @@ export function SearchPanel({
     );
   };
 
-  const bbox = STATE_CONFIG[selectedState].bbox;
+  const chipsToRender = useMemo(() => {
+    if (FEATURED_STATES.includes(selectedState)) return FEATURED_STATES;
+    return ['all', selectedState, ...FEATURED_STATES.filter(s => s !== 'all')];
+  }, [selectedState]);
+
+  const filteredStates = useMemo(() => {
+    const q = stateSearchQuery.trim().toLowerCase();
+    const allKeys = (Object.keys(STATE_CONFIG) as StateKey[]).filter(k => k !== 'all');
+    const sorted = [...allKeys].sort((a, b) => STATE_CONFIG[a].name.localeCompare(STATE_CONFIG[b].name));
+    if (!q) return sorted;
+    return sorted.filter(k => {
+      const cfg = STATE_CONFIG[k];
+      return cfg.label.toLowerCase().includes(q) || cfg.name.toLowerCase().includes(q);
+    });
+  }, [stateSearchQuery]);
+
+  const bbox = STATE_CONFIG[selectedState]?.bbox || STATE_CONFIG.all.bbox;
   const handleStateSelect = (s: StateKey) => {
     setSelectedState(s);
     onStateChange(s);
@@ -525,19 +593,92 @@ export function SearchPanel({
         contentContainerStyle={styles.stateScrollContent}
         style={styles.stateScrollView}
       >
-        {(Object.keys(STATE_CONFIG) as StateKey[]).map(s => (
+        {chipsToRender.map(s => (
           <TouchableOpacity
             key={s}
             style={[styles.stateChip, selectedState === s && styles.stateChipActive]}
-            onPress={() => handleStateSelect(s)}
+            onPress={() => {
+              setShowStateDropdown(false);
+              handleStateSelect(s);
+            }}
             activeOpacity={0.7}
           >
             <Text style={[styles.stateChipText, selectedState === s && styles.stateChipTextActive]}>
-              {STATE_CONFIG[s].flag} {STATE_CONFIG[s].label}
+              {STATE_CONFIG[s]?.flag} {STATE_CONFIG[s]?.label}
             </Text>
           </TouchableOpacity>
         ))}
+
+        {/* More States Button */}
+        <TouchableOpacity
+          style={[styles.stateChip, styles.moreStatesChip, showStateDropdown && styles.moreStatesChipActive]}
+          onPress={() => setShowStateDropdown(prev => !prev)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.stateChipText, showStateDropdown && styles.stateChipTextActive]}>
+            🗺️ More States {showStateDropdown ? '▴' : '▾'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      {/* 50-State Searchable Dropdown */}
+      {showStateDropdown && (
+        <View style={styles.dropdownModal}>
+          <View style={styles.dropdownHeader}>
+            <Text style={styles.dropdownTitle}>Explore All 50 States</Text>
+            <TouchableOpacity onPress={() => setShowStateDropdown(false)} style={styles.dropdownCloseBtn}>
+              <Text style={styles.dropdownCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dropdownSearchWrap}>
+            <TextInput
+              style={styles.dropdownSearchInput}
+              placeholder="Filter state (e.g. New York, CO, TN)..."
+              placeholderTextColor="#666"
+              value={stateSearchQuery}
+              onChangeText={setStateSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <ScrollView
+            style={styles.dropdownList}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {filteredStates.map(s => {
+              const cfg = STATE_CONFIG[s];
+              const isSel = selectedState === s;
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.dropdownItem, isSel && styles.dropdownItemActive]}
+                  onPress={() => {
+                    handleStateSelect(s);
+                    setShowStateDropdown(false);
+                    setStateSearchQuery('');
+                  }}
+                  activeOpacity={0.65}
+                >
+                  <Text style={styles.dropdownItemFlag}>{cfg.flag}</Text>
+                  <Text style={[styles.dropdownItemCode, isSel && styles.dropdownItemTextActive]}>
+                    {cfg.label}
+                  </Text>
+                  <Text style={[styles.dropdownItemName, isSel && styles.dropdownItemTextActive]}>
+                    {cfg.name}
+                  </Text>
+                  {isSel && <Text style={styles.dropdownItemCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+            {filteredStates.length === 0 && (
+              <View style={styles.dropdownEmpty}>
+                <Text style={styles.dropdownEmptyText}>No matching states found</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Region routing availability notice */}
       {selectedState !== 'ca' && selectedState !== 'nv' && (
@@ -796,6 +937,110 @@ const styles = StyleSheet.create({
   stateChipTextActive: {
     color: '#E8C97A',
     fontWeight: '700',
+  },
+  moreStatesChip: {
+    borderColor: '#383860',
+    backgroundColor: '#161633',
+  },
+  moreStatesChipActive: {
+    borderColor: '#E8C97A',
+    backgroundColor: '#E8C97A22',
+  },
+  dropdownModal: {
+    backgroundColor: '#15152a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#34345c',
+    marginBottom: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+    zIndex: 50,
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#252542',
+  },
+  dropdownTitle: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  dropdownCloseBtn: {
+    padding: 4,
+  },
+  dropdownCloseText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dropdownSearchWrap: {
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  dropdownSearchInput: {
+    backgroundColor: '#0d0d1e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2e2e54',
+    color: '#fff',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    outlineStyle: 'none',
+  } as any,
+  dropdownList: {
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 8,
+  },
+  dropdownItemActive: {
+    backgroundColor: '#E8C97A22',
+  },
+  dropdownItemFlag: {
+    fontSize: 14,
+  },
+  dropdownItemCode: {
+    color: '#E8C97A',
+    fontWeight: '700',
+    fontSize: 12,
+    width: 24,
+  },
+  dropdownItemName: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    flex: 1,
+  },
+  dropdownItemTextActive: {
+    color: '#E8C97A',
+    fontWeight: '700',
+  },
+  dropdownItemCheck: {
+    color: '#E8C97A',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  dropdownEmpty: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dropdownEmptyText: {
+    color: '#64748b',
+    fontSize: 11,
   },
   stateNotice: {
     backgroundColor: '#111127',
