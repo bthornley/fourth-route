@@ -1,6 +1,10 @@
 ca_build/
+southwest_build/
+multi_state_build/
+tier1_build/
 custom_files/
 *.pbf
 *.tar
 *.tar.gz
+*.part*
 valhalla_tiles/
