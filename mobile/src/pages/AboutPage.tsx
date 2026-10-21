@@ -43,7 +43,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
           <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
-          <Text style={styles.heroSub}>Privacy routing in CA & NV · Camera maps across CA, NV, WA, OR & TX</Text>
+          <Text style={styles.heroSub}>145,154 cameras mapped across all 50 states · Active privacy routing in 13 states (CA, NV, TX, GA, IL, FL, OH, NY, VA, NC, AZ, WA, OR)</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
@@ -90,25 +90,25 @@ export function AboutPage({ navigate }: Props) {
 
         {/* Concrete example */}
         <View style={styles.exampleCard}>
-          <Text style={styles.exampleLabel}>Example route</Text>
-          <Text style={styles.exampleRoute}>Oakland Financial District → Fruitvale</Text>
+          <Text style={styles.exampleLabel}>Verified 40m Road-Corridor Example</Text>
+          <Text style={styles.exampleRoute}>Downtown Oakland → Fruitvale</Text>
           <View style={styles.exampleRow}>
             <View style={styles.exampleStat}>
-              <Text style={styles.exampleNum}>716</Text>
-              <Text style={styles.exampleDesc}>cameras in corridor</Text>
+              <Text style={styles.exampleNum}>26</Text>
+              <Text style={styles.exampleDesc}>cameras on fastest route</Text>
             </View>
             <View style={styles.exampleArrow}><Text style={styles.exampleArrowText}>→</Text></View>
             <View style={styles.exampleStat}>
-              <Text style={[styles.exampleNum, { color: '#4ade80' }]}>686</Text>
+              <Text style={[styles.exampleNum, { color: '#4ade80' }]}>25</Text>
               <Text style={styles.exampleDesc}>avoided by Fourth Route</Text>
             </View>
             <View style={styles.exampleArrow}><Text style={styles.exampleArrowText}>+</Text></View>
             <View style={styles.exampleStat}>
-              <Text style={[styles.exampleNum, { color: '#E8C97A' }]}>+2 min</Text>
+              <Text style={[styles.exampleNum, { color: '#E8C97A' }]}>+2.8 min</Text>
               <Text style={styles.exampleDesc}>time overhead</Text>
             </View>
           </View>
-          <Text style={styles.exampleFootnote}>30 cameras remain on unavoidable chokepoints. Privacy costs about $0.03 in extra fuel.</Text>
+          <Text style={styles.exampleFootnote}>1 camera remains near the destination endpoint. The privacy route is 0.39 miles shorter than the standard route.</Text>
         </View>
 
         {/* How it works */}
@@ -120,7 +120,7 @@ export function AboutPage({ navigate }: Props) {
           </Text>
           {[
             ['Standard route', 'The fastest available path, shown for comparison'],
-            ['Privacy route', 'A camera-minimizing alternative, computed by treating camera corridors as soft-penalty zones'],
+            ['Privacy route', 'A camera-minimizing alternative computed via iterative 40m polygon exclusion passes'],
           ].map(([label, desc]) => (
             <View key={label} style={styles.bullet}>
               <Text style={styles.bulletLabel}>{label}</Text>
@@ -128,17 +128,17 @@ export function AboutPage({ navigate }: Props) {
             </View>
           ))}
           <Text style={styles.body}>
-            Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras you actually pass, not just cameras near your origin or destination.
+            Camera counts are computed by decoding the route polyline to a geographic linestring and running a PostGIS <Text style={styles.code}>ST_DWithin</Text> spatial query — counting only cameras within 40 meters of the actual road geometry you drive on.
           </Text>
           <Text style={styles.body}>
-            <Text style={styles.highlight}>44,598 cameras</Text> are mapped across California, Nevada, Arizona, Washington, Oregon, and Texas. The database syncs from OpenStreetMap and public FOIA records every week via automated GitHub Actions.
+            <Text style={styles.highlight}>145,154 cameras</Text> are mapped across all 50 US states and Washington, D.C., paired with verified law enforcement transparency portal metadata (30-day scan volumes, search counts, retention periods, and agency sharing networks).
           </Text>
         </View>
 
         {/* Who it's for */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Who it's for</Text>
-          <Text style={styles.sectionTitle}>Anyone who drives in CA, NV, AZ, WA, OR, or TX</Text>
+          <Text style={styles.sectionTitle}>Anyone who drives on public roads</Text>
           {[
             ['🔒 Privacy-conscious drivers', 'Exercising the right to travel without mass surveillance logging every movement'],
             ['⚠️ Domestic violence survivors', 'Abusers with law enforcement contacts or data broker access can track movements through ALPR systems — avoidance routing is a safety tool'],

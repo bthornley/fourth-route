@@ -92,7 +92,9 @@ export const STATE_CONFIG: Record<StateKey, {
   wy: { label: 'WY', name: 'Wyoming', flag: '🦬', bbox: '-111.06,40.99,-104.05,45.00', center: { lng: -104.82, lat: 41.14, zoom: 6.8 } },
 };
 
-export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'fl', 'oh', 'az', 'wa', 'or'];
+export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'fl', 'oh', 'ny', 'va', 'nc', 'az', 'wa', 'or'];
+
+export const ROUTING_STATES = new Set<StateKey>(['all', 'ca', 'nv', 'tx', 'ga', 'il', 'fl', 'oh', 'ny', 'va', 'nc', 'az', 'wa', 'or']);
 
 export interface DemoRoute {
   id: string;
@@ -239,6 +241,18 @@ export function formatPlace(r?: GeoResult | null): { main: string; secondary: st
 
   const full = secondary ? `${main}, ${secondary}` : main;
   return { main, secondary, full };
+}
+
+export function detectUnsupportedState(r?: GeoResult | null): string | null {
+  if (!r) return null;
+  const rawState = r.address?.state;
+  if (rawState) {
+    const abbr = (US_STATE_ABBR[rawState] || rawState).toLowerCase() as StateKey;
+    if (STATE_CONFIG[abbr] && !ROUTING_STATES.has(abbr)) {
+      return STATE_CONFIG[abbr].name;
+    }
+  }
+  return null;
 }
 
 function shortLabel(r?: GeoResult | null): string {
@@ -409,9 +423,11 @@ export function SearchPanel({
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         let placeName = 'Current Location';
+        let revAddress: Record<string, string> | undefined = undefined;
         try {
           const data = await reverseGeocode(latitude, longitude);
           if (data) {
+            revAddress = data.address;
             const fp = formatPlace(data);
             placeName = fp.main || fp.full || 'Current Location';
           }
@@ -424,6 +440,7 @@ export function SearchPanel({
           display_name: placeName,
           lat: String(latitude),
           lon: String(longitude),
+          address: revAddress,
         });
         setLocLoading(false);
         try {
@@ -559,7 +576,7 @@ export function SearchPanel({
           <Text style={styles.collapsedBrowseTitle}>Search & Plan Route</Text>
         </View>
         <View style={styles.collapsedBrowseRight}>
-          <Text style={styles.collapsedBrowseBadge}>41k+ Cameras</Text>
+          <Text style={styles.collapsedBrowseBadge}>145k+ Cameras</Text>
           <Text style={styles.collapsedBrowseChevron}>▲</Text>
         </View>
       </TouchableOpacity>
@@ -681,13 +698,19 @@ export function SearchPanel({
       )}
 
       {/* Region routing availability notice */}
-      {selectedState !== 'ca' && selectedState !== 'nv' && (
-        <View style={styles.stateNotice}>
-          <Text style={styles.stateNoticeText}>
-            ℹ️ Camera data is live · Privacy routing is currently enabled in California & Nevada
-          </Text>
-        </View>
-      )}
+      {(() => {
+        const unsupportedEndpointState = detectUnsupportedState(origin) || detectUnsupportedState(dest);
+        const unsupportedChipState = !ROUTING_STATES.has(selectedState) ? STATE_CONFIG[selectedState]?.name : null;
+        const unlaunchedState = unsupportedEndpointState || unsupportedChipState;
+        if (!unlaunchedState) return null;
+        return (
+          <View style={styles.stateNotice}>
+            <Text style={styles.stateNoticeText}>
+              ℹ️ Camera map is live in {unlaunchedState}, but privacy routing isn't launched in {unlaunchedState} yet. Active routing states: CA, NV, TX, GA, IL, FL, OH, NY, VA, NC, AZ, WA & OR.
+            </Text>
+          </View>
+        );
+      })()}
 
       <View style={styles.divider} />
 
