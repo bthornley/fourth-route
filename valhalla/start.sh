@@ -3,8 +3,10 @@ set -e
 
 TILES_TAR="/custom_files/valhalla_tiles.tar"
 
-echo "=== Fourth Route — Valhalla multi-state tiles startup (CA/WA/OR/TX) ==="
+echo "=== Fourth Route — Valhalla 14-state tiles startup (CA/NV/TX/GA/IL/FL/OH/NY/PA/VA/NC/AZ/WA/OR) ==="
 mkdir -p /custom_files
+
+TILES_URL="${TILES_URL_V5:-https://github.com/bthornley/fourth-route/releases/download/v5-tiles-14states/valhalla_tiles.tar.gz.partaa}"
 
 # Download pre-built tiles if not already present
 if [ ! -f "$TILES_TAR" ]; then

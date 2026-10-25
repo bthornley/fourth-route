@@ -43,7 +43,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
           <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
-          <Text style={styles.heroSub}>145,154 cameras mapped across all 50 states · Active privacy routing in 13 states (CA, NV, TX, GA, IL, FL, OH, NY, VA, NC, AZ, WA, OR)</Text>
+          <Text style={styles.heroSub}>145,283 cameras mapped across all 50 states · Active privacy routing in 14 states (CA, NV, TX, GA, IL, FL, OH, NY, PA, VA, NC, AZ, WA, OR)</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
