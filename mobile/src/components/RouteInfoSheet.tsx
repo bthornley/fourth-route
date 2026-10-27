@@ -408,6 +408,20 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
             ))}
           </View>
         )}
+
+        {/* Ko-fi Server Support Pill */}
+        <TouchableOpacity
+          style={styles.kofiPillBtn}
+          onPress={() => {
+            try { track('click_kofi_route_sheet'); } catch {}
+            Linking.openURL('https://ko-fi.com/fourthroute');
+          }}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.kofiPillText}>
+            ☕ Help fund our 50-state routing servers · ko-fi.com/fourthroute
+          </Text>
+        </TouchableOpacity>
       </View>
 
     </View>
@@ -689,5 +703,20 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 10.5,
     marginTop: 2,
+  },
+  kofiPillBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#121226',
+    borderWidth: 1,
+    borderColor: '#E8C97A55',
+    alignItems: 'center',
+  },
+  kofiPillText: {
+    color: '#E8C97A',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
