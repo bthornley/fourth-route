@@ -37,7 +37,7 @@ Enter an origin and destination (or tap a live demo corridor). Fourth Route comp
 ## Camera & Agency Transparency Data
 
 - **145,283 ALPR cameras mapped nationwide** across all 50 US states and Washington, D.C.
-- **15-State Active Privacy Routing:** Real-time camera-avoidance routing enabled across 15 states (**CA, NV, TX, GA, IL, FL, OH, NY, PA, VA, NC, AZ, WA, OR, ID**), covering ~81.5% of all mapped US cameras.
+- **17-State Active Privacy Routing:** Real-time camera-avoidance routing enabled across 17 states (**CA, NV, TX, GA, IL, FL, OH, NY, PA, NJ, VA, NC, AZ, CO, WA, OR, ID**), covering ~85% of all mapped US cameras.
 - **Agency Transparency Profiles:** Tapping any camera marker reveals its operating jurisdiction and verified Flock Safety transparency portal metrics where published:
   - Operating agency & city/county jurisdiction (via US Census TIGER/Line spatial attribution)
   - 30-day vehicles captured, officer search volume, and hotlist hit rate
