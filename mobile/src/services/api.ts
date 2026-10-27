@@ -166,7 +166,7 @@ function routeError(body: any, status: number, fallback: string): Error {
   const detail = (body?.detail ?? '') as string;
   if (detail.includes('400') || status === 502 || status === 503) {
     return new Error(
-      'Privacy routing is not yet available in this area. Active routing states: CA, NV, TX, GA, IL, FL, OH, NY, PA, NJ, VA, NC, AZ, CO, WA, OR & ID (camera map is live in all 50 states).'
+      'Privacy routing is not yet available in this area. Active routing states: CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, VA, NC, AZ, CO, WA, OR & ID (camera map is live in all 50 states).'
     );
   }
   return new Error(detail || fallback);
