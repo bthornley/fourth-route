@@ -92,9 +92,9 @@ export const STATE_CONFIG: Record<StateKey, {
   wy: { label: 'WY', name: 'Wyoming', flag: '🦬', bbox: '-111.06,40.99,-104.05,45.00', center: { lng: -104.82, lat: 41.14, zoom: 6.8 } },
 };
 
-export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id'];
+export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'md', 'ma', 'dc', 'de', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id'];
 
-export const ROUTING_STATES = new Set<StateKey>(['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id']);
+export const ROUTING_STATES = new Set<StateKey>(['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'md', 'ma', 'dc', 'de', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id']);
 
 export interface DemoRoute {
   id: string;
@@ -706,7 +706,7 @@ export function SearchPanel({
         return (
           <View style={styles.stateNotice}>
             <Text style={styles.stateNoticeText}>
-              ℹ️ Camera map is live in {unlaunchedState}, but privacy routing isn't launched in {unlaunchedState} yet. Active routing states: CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, VA, NC, AZ, CO, WA, OR & ID.
+              ℹ️ Camera map is live in {unlaunchedState}, but privacy routing isn't launched in {unlaunchedState} yet. Active routing states: CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, MD, MA, VA, NC, AZ, CO, WA, OR, ID, DC & DE.
             </Text>
           </View>
         );

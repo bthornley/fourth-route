@@ -3,10 +3,10 @@ set -e
 
 TILES_TAR="/custom_files/valhalla_tiles.tar"
 
-echo "=== Fourth Route — Valhalla 19-state tiles startup (CA/NV/TX/GA/IL/IN/MI/FL/OH/NY/PA/NJ/VA/NC/AZ/CO/WA/OR/ID) ==="
+echo "=== Fourth Route — Valhalla 21-state tiles startup (+MD/MA/DC/DE I-95 Bridge) ==="
 mkdir -p /custom_files
 
-TILES_URL="${TILES_URL_V8:-https://github.com/bthornley/fourth-route/releases/download/v8-tiles-19states/valhalla_tiles.tar.gz.partaa}"
+TILES_URL="${TILES_URL_V9:-https://github.com/bthornley/fourth-route/releases/download/v9-tiles-21states/valhalla_tiles.tar.gz.partaa}"
 
 # Download pre-built tiles if not already present
 if [ ! -f "$TILES_TAR" ]; then
@@ -20,12 +20,14 @@ if [ ! -f "$TILES_TAR" ]; then
     TILES_URL_AB="${TILES_URL/partaa/partab}"
     TILES_URL_AC="${TILES_URL/partaa/partac}"
     TILES_URL_AD="${TILES_URL/partaa/partad}"
-    echo "Streaming 4-part tile archive..."
+    TILES_URL_AE="${TILES_URL/partaa/partae}"
+    echo "Streaming 5-part tile archive..."
     {
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AA"
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AB"
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AC"
       curl -L --retry 3 --retry-delay 10 "$TILES_URL_AD"
+      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AE"
     } | gunzip > "$TILES_TAR"
   else
     echo "Downloading single-file tiles from $TILES_URL ..."
