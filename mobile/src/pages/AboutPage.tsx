@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { PARTNERS, PARTNER_PROMO_CODE } from '../config/partners';
 
 interface Props {
   navigate: (path: string) => void;
@@ -14,6 +15,10 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.navBackText}>← Map</Text>
         </TouchableOpacity>
         <View style={styles.navLinks}>
+          <TouchableOpacity onPress={() => navigate('/lockdown')}>
+            <Text style={[styles.navLink, { color: '#4ade80', fontWeight: '700' }]}>🛡️ Lockdown</Text>
+          </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
           <TouchableOpacity onPress={() => navigate('/privacy')}>
             <Text style={styles.navLink}>Privacy Policy</Text>
           </TouchableOpacity>
@@ -201,6 +206,49 @@ export function AboutPage({ navigate }: Props) {
           </Text>
         </View>
 
+        {/* 4-Layer Commuter Lockdown Toolkit */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Defense-in-Depth</Text>
+          <Text style={styles.sectionTitle}>The 4-Layer Commuter Privacy Lockdown</Text>
+          <Text style={styles.body}>
+            Bypassing optical license plate cameras is Layer 01. To protect your commute against roadside cellular IMSI catchers, Bluetooth/Wi-Fi MAC sniffers, and commercial data brokers that tie plate scans to your home address, we maintain a complete{' '}
+            <Text style={styles.link} onPress={() => navigate('/lockdown')}>
+              4-Layer Commuter Lockdown Guide →
+            </Text>
+          </Text>
+          {[
+            ['🛡️ Layer 01 · Fourth Route', 'Free, open-source optical ALPR avoidance across 145,283 mapped cameras and 1,528 police transparency portals.'],
+            ['📵 Layer 02 · SLNT® Faraday (@goslnt)', `Patented -100 dB Faraday sleeves blocking cellular IMSI catchers, GPS, Wi-Fi/BLE beacons & key-fob relay attacks (${PARTNERS.slnt.offerBadge}).`],
+            ['🧹 Layer 03 · DeleteMe (@deleteme)', `Automated & human opt-out removals across 500+ data brokers to sever the license-plate-to-home-address lookup chain (${PARTNERS.deleteme.offerBadge}).`],
+            ['📋 Layer 04 · Ephemeral Turn-by-Turn', 'Use Fourth Route\u2019s built-in Turn-by-Turn step list or offline open-source maps so Big Tech navigation apps never log your route history.'],
+          ].map(([icon, desc]) => (
+            <View key={icon as string} style={styles.stateCard}>
+              <Text style={styles.stateIcon}>{icon}</Text>
+              <Text style={styles.stateDesc}>{desc}</Text>
+            </View>
+          ))}
+          <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+            <TouchableOpacity
+              style={[styles.heroBtn, { backgroundColor: '#4ade80' }]}
+              onPress={() => navigate('/lockdown')}
+            >
+              <Text style={styles.heroBtnText}>Open 4-Layer Lockdown Guide →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.heroBtn, { backgroundColor: '#13132b', borderWidth: 1, borderColor: '#38bdf8' }]}
+              onPress={() => Linking.openURL(PARTNERS.slnt.url)}
+            >
+              <Text style={[styles.heroBtnText, { color: '#38bdf8' }]}>SLNT® Faraday ({PARTNER_PROMO_CODE}) ↗</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.heroBtn, { backgroundColor: '#13132b', borderWidth: 1, borderColor: '#4ade80' }]}
+              onPress={() => Linking.openURL(PARTNERS.deleteme.url)}
+            >
+              <Text style={[styles.heroBtnText, { color: '#4ade80' }]}>DeleteMe ({PARTNER_PROMO_CODE}) ↗</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Support */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Support</Text>
@@ -229,6 +277,10 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.footerText}>Fourth Route is a free, open-source public interest project.</Text>
           <Text style={styles.footerText}>AGPL-3.0 License · Camera data: OpenStreetMap (ODbL) + public records</Text>
           <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigate('/lockdown')}>
+              <Text style={[styles.footerLink, { color: '#4ade80' }]}>🛡️ Lockdown</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>·</Text>
             <TouchableOpacity onPress={() => navigate('/privacy')}>
               <Text style={styles.footerLink}>Privacy Policy</Text>
             </TouchableOpacity>

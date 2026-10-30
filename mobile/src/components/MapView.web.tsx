@@ -325,6 +325,31 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               container.appendChild(link);
             }
 
+            // Contextual Commuter Lockdown / Broker Purge action link
+            const lockdownLink = document.createElement('a');
+            lockdownLink.href = '/lockdown';
+            lockdownLink.style.display = 'block';
+            lockdownLink.style.textAlign = 'center';
+            lockdownLink.style.background = '#0f172a';
+            lockdownLink.style.color = '#4ade80';
+            lockdownLink.style.fontWeight = '600';
+            lockdownLink.style.fontSize = '10.5px';
+            lockdownLink.style.padding = '5px 8px';
+            lockdownLink.style.borderRadius = '5px';
+            lockdownLink.style.textDecoration = 'none';
+            lockdownLink.style.marginBottom = '6px';
+            lockdownLink.style.border = '1px solid #1e293b';
+            lockdownLink.textContent = '🛡️ Purge Plate-Linked Broker Data & RF Shield →';
+            lockdownLink.addEventListener('click', (ev) => {
+              ev.preventDefault();
+              try {
+                track('camera_popup_lockdown_click');
+              } catch {}
+              window.history.pushState(null, '', '/lockdown');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            });
+            container.appendChild(lockdownLink);
+
             // Attribution footer
             const attr = document.createElement('div');
             attr.style.fontSize = '9px';

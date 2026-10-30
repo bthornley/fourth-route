@@ -13,6 +13,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { track } from '@vercel/analytics';
 import { AboutPage } from './src/pages/AboutPage';
+import { LockdownPage } from './src/pages/LockdownPage';
 import { PrivacyPolicy } from './src/pages/PrivacyPolicy';
 import { TermsOfService } from './src/pages/TermsOfService';
 import { ContactPage } from './src/pages/ContactPage';
@@ -105,6 +106,9 @@ export default function App() {
 
   // Page routing
   if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  if (path === '/lockdown' || path === '/tools' || path === '/links') {
+    return <><LockdownPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  }
   if (path === '/privacy') return <><PrivacyPolicy navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/terms') return <><TermsOfService navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/contact') return <><ContactPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
@@ -158,7 +162,12 @@ export default function App() {
 
           {/* Route info sheet when result is available */}
           {result && !loading && (
-            <RouteInfoSheet result={result} vehicle={vehicle} onClear={clearRoute} />
+            <RouteInfoSheet
+              result={result}
+              vehicle={vehicle}
+              onClear={clearRoute}
+              onOpenLockdown={() => navigate('/lockdown')}
+            />
           )}
 
           {/* Hint when idle and search panel expanded */}
@@ -186,6 +195,9 @@ export default function App() {
                 <Text style={styles.footerLink}>{label}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity onPress={() => navigate('/lockdown')}>
+              <Text style={[styles.footerLink, { color: '#4ade80' }]}>🛡️ Lockdown</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => Linking.openURL('https://ko-fi.com/fourthroute')}>
               <Text style={[styles.footerLink, { color: '#E8C97A' }]}>☕ Donate</Text>
             </TouchableOpacity>

@@ -6,11 +6,13 @@ import {
   VehicleType, VEHICLE_PROFILES,
   calcFuelSavings, annualiseSavings,
 } from '../services/fuel';
+import { PARTNERS, PARTNER_PROMO_CODE, KOFI_URL } from '../config/partners';
 
 interface Props {
   result: CompareResult;
   vehicle: VehicleType;
   onClear?: () => void;
+  onOpenLockdown?: () => void;
 }
 
 function fmtTime(seconds: number): string {
@@ -74,7 +76,7 @@ const VERDICT_CONFIG = {
   impossible:      { emoji: '⚠️', label: 'No privacy route',        sub: 'We couldn\u2019t calculate an alternate route for this trip.', color: '#E74C3C' },
 };
 
-export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
+export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
   const [expanded, setExpanded] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
@@ -409,12 +411,54 @@ export function RouteInfoSheet({ result, vehicle, onClear }: Props) {
           </View>
         )}
 
+        {/* 4-Layer Commuter Lockdown Toolkit Bar */}
+        <View style={styles.lockdownBox}>
+          <TouchableOpacity
+            style={styles.lockdownHeaderBtn}
+            onPress={() => {
+              try { track('click_lockdown_route_sheet'); } catch {}
+              if (onOpenLockdown) onOpenLockdown();
+            }}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.lockdownHeaderText}>
+              🛡️ Complete Your 4-Layer Commute Lockdown (Code: {PARTNER_PROMO_CODE}) →
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.lockdownPillsRow}>
+            <TouchableOpacity
+              style={[styles.partnerMiniPill, { borderColor: '#38bdf855' }]}
+              onPress={() => {
+                try { track('partner_click', { partner: 'slnt', placement: 'route_sheet' }); } catch {}
+                Linking.openURL(PARTNERS.slnt.url);
+              }}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.partnerMiniPillText, { color: '#38bdf8' }]}>
+                📵 SLNT® Faraday (-100 dB) ↗
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.partnerMiniPill, { borderColor: '#4ade8055' }]}
+              onPress={() => {
+                try { track('partner_click', { partner: 'deleteme', placement: 'route_sheet' }); } catch {}
+                Linking.openURL(PARTNERS.deleteme.url);
+              }}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.partnerMiniPillText, { color: '#4ade80' }]}>
+                🧹 DeleteMe Broker Purge ↗
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Ko-fi Server Support Pill */}
         <TouchableOpacity
           style={styles.kofiPillBtn}
           onPress={() => {
             try { track('click_kofi_route_sheet'); } catch {}
-            Linking.openURL('https://ko-fi.com/fourthroute');
+            Linking.openURL(KOFI_URL);
           }}
           activeOpacity={0.75}
         >
@@ -704,8 +748,45 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     marginTop: 2,
   },
-  kofiPillBtn: {
+  lockdownBox: {
     marginTop: 10,
+    padding: 9,
+    borderRadius: 10,
+    backgroundColor: '#121226',
+    borderWidth: 1,
+    borderColor: '#2d2d55',
+    gap: 6,
+  },
+  lockdownHeaderBtn: {
+    alignItems: 'center',
+  },
+  lockdownHeaderText: {
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  lockdownPillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  partnerMiniPill: {
+    flex: 1,
+    minWidth: 130,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 7,
+    backgroundColor: '#171733',
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  partnerMiniPillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  kofiPillBtn: {
+    marginTop: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
