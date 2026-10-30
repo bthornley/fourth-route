@@ -112,8 +112,10 @@ if (fs.existsSync(pwaDir)) {
 const srcVercel = path.join(__dirname, '../vercel.json');
 const dstVercel = path.join(__dirname, '../web-build/vercel.json');
 const vConfig = JSON.parse(fs.readFileSync(srcVercel, 'utf8'));
-// When deploying from web-build/, no outputDirectory needed
+// When deploying from web-build/, no outputDirectory, buildCommand, or installCommand needed
 delete vConfig.outputDirectory;
+delete vConfig.buildCommand;
+delete vConfig.installCommand;
 fs.writeFileSync(dstVercel, JSON.stringify(vConfig, null, 2));
 
 // Copy .vercel/project.json so CLI knows which project to deploy to
