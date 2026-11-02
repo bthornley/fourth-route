@@ -108,7 +108,7 @@ export default function App() {
   if (path === '/slnt') {
     if (typeof window !== 'undefined') {
       try { track('partner_redirect', { partner: 'slnt' }); } catch {}
-      window.location.replace('https://www.slnt.com/STHPW5014');
+      window.location.replace('https://www.slnt.com/FOURTHROUTE');
     }
     return null;
   }

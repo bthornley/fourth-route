@@ -422,7 +422,7 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
             activeOpacity={0.75}
           >
             <Text style={styles.lockdownHeaderText}>
-              🛡️ Complete Your 4-Layer Commute Lockdown →
+              🛡️ Complete Your 4-Layer Commute Lockdown (Code: {PARTNER_PROMO_CODE}) →
             </Text>
           </TouchableOpacity>
           <View style={styles.lockdownPillsRow}>
