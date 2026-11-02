@@ -435,7 +435,7 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
               activeOpacity={0.75}
             >
               <Text style={[styles.partnerMiniPillText, { color: '#38bdf8' }]}>
-                📵 SLNT® Faraday (-100 dB) ↗
+                📵 Go SLNT® Faraday Gear ↗
               </Text>
             </TouchableOpacity>
             <TouchableOpacity

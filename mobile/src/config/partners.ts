@@ -27,24 +27,24 @@ export const GITHUB_URL = 'https://github.com/bthornley/fourth-route';
 export const PARTNERS: Record<'slnt' | 'deleteme', PartnerConfig> = {
   slnt: {
     id: 'slnt',
-    layerBadge: 'LAYER 02 · HARDWARE RF & CELLULAR ISOLATION',
-    name: 'SLNT® Faraday Gear',
+    layerBadge: 'LAYER 02 · HARDWARE SIGNAL CONTROL',
+    name: 'SLNT® Signal-Blocking Gear',
     handle: '@goslnt',
-    headline: 'Go Invisible to Cellular IMSI Catchers, GPS & BLE Sniffers',
+    headline: 'The Analog Off Switch: Block Cellular, Wi-Fi, Bluetooth, GPS & RFID',
     threatVector:
-      'Bypassing optical ALPR cameras stops plate scans — but roadside Stingrays (IMSI catchers), municipal Wi-Fi/Bluetooth MAC sniffers, and 315/433 MHz key-fob relay scanners still ping your phone and vehicle hardware.',
+      'Airplane mode and software privacy settings are soft switches — your phone and key fob can still connect, transmit, and be reached in the background along your commute.',
     solutionSummary:
-      'Patented Silent Pocket® Faraday cages provide instant -100 dB MIL-STD-188-125-2 electromagnetic attenuation, physically severing cellular, GPS, Wi-Fi, Bluetooth, RFID, and key-fob telemetry without trusting software "Airplane Mode."',
+      'SLNT® builds the physical analog off switch for modern life: patented Silent Pocket® Faraday sleeves with magnetic closure that create a brick wall for your wireless signals so your device cannot connect, track, transmit, or be reached until you choose to take it back online.',
     specs: [
-      '-100 dB RF attenuation (400 MHz – 40 GHz)',
-      'Blocks 5G/LTE IMSI catchers, GPS, Wi-Fi & Bluetooth MAC probes',
-      'Stops relay-attack key-fob cloning & vehicle telemetry pings',
+      'Blocks Cellular, Wi-Fi, Bluetooth, GPS, RFID/NFC, Satellite, EMP & EMF',
+      'Patented Silent Pocket® Faraday Sleeve Insert with magnetic closure',
+      'Trusted by 350k+ customers & Special Operations (9 military contracts)',
     ],
     url: 'https://slnt.com',
     promoCode: PARTNER_PROMO_CODE,
     offerBadge: 'Code FOURTHROUTE',
-    ctaLabel: 'Explore SLNT® Faraday Sleeves ↗',
-    shortPillLabel: '📵 SLNT Faraday',
+    ctaLabel: 'Go SLNT · Explore Faraday Gear ↗',
+    shortPillLabel: '📵 Go SLNT®',
     accentColor: '#38bdf8',
   },
   deleteme: {
