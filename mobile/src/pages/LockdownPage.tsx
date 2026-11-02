@@ -190,7 +190,7 @@ export function LockdownPage({ navigate }: Props) {
                 <Text style={[styles.secondaryQuickTitle, { color: '#38bdf8' }]}>
                   📵 SLNT® Faraday Gear
                 </Text>
-                <Text style={styles.secondaryQuickSub}>Code: {PARTNER_PROMO_CODE}</Text>
+                <Text style={styles.secondaryQuickSub}>10% Off Auto-Applied ↗</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

@@ -105,6 +105,13 @@ export default function App() {
   }, []);
 
   // Page routing
+  if (path === '/slnt') {
+    if (typeof window !== 'undefined') {
+      try { track('partner_redirect', { partner: 'slnt' }); } catch {}
+      window.location.replace('https://www.slnt.com/STHPW5014');
+    }
+    return null;
+  }
   if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/lockdown' || path === '/tools' || path === '/links') {
     return <><LockdownPage navigate={navigate} /><Analytics /><SpeedInsights /></>;

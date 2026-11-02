@@ -422,7 +422,7 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
             activeOpacity={0.75}
           >
             <Text style={styles.lockdownHeaderText}>
-              🛡️ Complete Your 4-Layer Commute Lockdown (Code: {PARTNER_PROMO_CODE}) →
+              🛡️ Complete Your 4-Layer Commute Lockdown →
             </Text>
           </TouchableOpacity>
           <View style={styles.lockdownPillsRow}>
@@ -435,7 +435,7 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
               activeOpacity={0.75}
             >
               <Text style={[styles.partnerMiniPillText, { color: '#38bdf8' }]}>
-                📵 Go SLNT® Faraday Gear ↗
+                📵 Go SLNT® Faraday (10% Off) ↗
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
