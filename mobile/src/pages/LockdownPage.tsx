@@ -92,28 +92,46 @@ export function LockdownPage({ navigate }: Props) {
           ))}
         </View>
 
+        {partner.seasonalNote && (
+          <View
+            style={[
+              styles.seasonalBanner,
+              {
+                borderColor: partner.accentColor + '55',
+                backgroundColor: partner.accentColor + '12',
+              },
+            ]}
+          >
+            <Text style={styles.seasonalBannerText}>{partner.seasonalNote}</Text>
+          </View>
+        )}
+
         {/* Promo Code + Primary Action Row */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[
-              styles.codeBtn,
-              isCopied && { borderColor: '#4ade80', backgroundColor: '#052e16' },
-            ]}
-            onPress={() => handleCopyCode(partner.id, partner.promoCode)}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.codeBtnLabel}>
-              {isCopied ? '✓ COPIED CODE' : 'TAP TO COPY CODE'}
-            </Text>
-            <Text
+          {partner.promoCode && (
+            <TouchableOpacity
               style={[
-                styles.codeBtnValue,
-                isCopied && { color: '#4ade80' },
+                styles.codeBtn,
+                isCopied && { borderColor: '#4ade80', backgroundColor: '#052e16' },
               ]}
+              onPress={() => handleCopyCode(partner.id, partner.promoCode!)}
+              activeOpacity={0.75}
             >
-              {partner.promoCode}
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.codeBtnLabel}>
+                {isCopied
+                  ? '✓ COPIED'
+                  : partner.promoBoxLabel || 'TAP TO COPY CODE'}
+              </Text>
+              <Text
+                style={[
+                  styles.codeBtnValue,
+                  isCopied && { color: '#4ade80' },
+                ]}
+              >
+                {partner.promoBoxValue || partner.promoCode}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.partnerCtaBtn, { backgroundColor: partner.accentColor }]}
@@ -190,7 +208,7 @@ export function LockdownPage({ navigate }: Props) {
                 <Text style={[styles.secondaryQuickTitle, { color: '#38bdf8' }]}>
                   📵 SLNT® Faraday Gear
                 </Text>
-                <Text style={styles.secondaryQuickSub}>10% Off · {PARTNER_PROMO_CODE}</Text>
+                <Text style={styles.secondaryQuickSub}>10% Off via Link ↗</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -626,6 +644,19 @@ const styles = StyleSheet.create({
   specsList: {
     marginBottom: 14,
     gap: 6,
+  },
+  seasonalBanner: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  seasonalBannerText: {
+    color: '#e2e8f0',
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   specRow: {
     flexDirection: 'row',
