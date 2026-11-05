@@ -441,13 +441,13 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
             <TouchableOpacity
               style={[styles.partnerMiniPill, { borderColor: '#4ade8055' }]}
               onPress={() => {
-                try { track('partner_click', { partner: 'deleteme', placement: 'route_sheet' }); } catch {}
-                Linking.openURL(PARTNERS.deleteme.url);
+                try { track('lockdown_guide_click', { placement: 'route_sheet_pill' }); } catch {}
+                if (onOpenLockdown) onOpenLockdown();
               }}
               activeOpacity={0.75}
             >
               <Text style={[styles.partnerMiniPillText, { color: '#4ade80' }]}>
-                🧹 DeleteMe Broker Purge ↗
+                🛡️ 4-Layer Lockdown Guide →
               </Text>
             </TouchableOpacity>
           </View>

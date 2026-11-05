@@ -1,5 +1,5 @@
 export interface PartnerConfig {
-  id: 'slnt' | 'deleteme';
+  id: 'slnt';
   layerBadge: string;
   name: string;
   handle: string;
@@ -83,7 +83,7 @@ function getSlntDynamicPromo(): {
 
 const slntPromo = getSlntDynamicPromo();
 
-export const PARTNERS: Record<'slnt' | 'deleteme', PartnerConfig> = {
+export const PARTNERS: Record<'slnt', PartnerConfig> = {
   slnt: {
     id: 'slnt',
     layerBadge: 'LAYER 02 · HARDWARE SIGNAL CONTROL',
@@ -108,29 +108,5 @@ export const PARTNERS: Record<'slnt' | 'deleteme', PartnerConfig> = {
     ctaLabel: 'Go SLNT · Shop via Referral Link (10% Off) ↗',
     shortPillLabel: '📵 Go SLNT® (10% Off)',
     accentColor: '#38bdf8',
-  },
-  deleteme: {
-    id: 'deleteme',
-    layerBadge: 'LAYER 03 · DATA BROKER & DOSSIER PURGE',
-    name: 'DeleteMe',
-    handle: '@deleteme',
-    headline: 'Sever the License-Plate-to-Home-Address Broker Pipeline',
-    threatVector:
-      'Commercial ALPR networks (DRN, Vigilant, repo spotters) cross-reference plate scans against commercial data brokers (LexisNexis, BeenVerified, Spokeo, Whitepages) to link your vehicle directly to your home address, phone number, relatives, and workplace.',
-    solutionSummary:
-      'DeleteMe continuously audits and submits formal opt-out removals across 500+ commercial data brokers, stripping your home address, phone numbers, property records, and family associations out of public and commercial lookup pipelines.',
-    specs: [
-      'Continuous automated + human removals across 500+ data brokers',
-      'Breaks the public lookup chain between your name, phone & home address',
-      'Quarterly privacy audit reports verifying broker removal status',
-    ],
-    url: 'https://joindeleteme.com',
-    promoCode: PARTNER_PROMO_CODE,
-    promoBoxLabel: 'TAP TO COPY CODE',
-    promoBoxValue: PARTNER_PROMO_CODE,
-    offerBadge: '20% Off · Code FOURTHROUTE',
-    ctaLabel: 'Purge Data Brokers with DeleteMe ↗',
-    shortPillLabel: '🧹 DeleteMe Purge',
-    accentColor: '#4ade80',
   },
 };

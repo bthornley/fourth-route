@@ -212,18 +212,6 @@ export function LockdownPage({ navigate }: Props) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.secondaryQuickBtn, { borderColor: '#4ade8066' }]}
-                onPress={() => handlePartnerClick(PARTNERS.deleteme, 'hero_quick_pill')}
-              >
-                <Text style={[styles.secondaryQuickTitle, { color: '#4ade80' }]}>
-                  🧹 DeleteMe Broker Purge
-                </Text>
-                <Text style={styles.secondaryQuickSub}>20% Off · {PARTNER_PROMO_CODE}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.secondaryQuickRow}>
-              <TouchableOpacity
                 style={[styles.secondaryQuickBtn, { borderColor: '#E8C97A55' }]}
                 onPress={() => {
                   try {
@@ -325,8 +313,68 @@ export function LockdownPage({ navigate }: Props) {
         {/* LAYER 02: SLNT */}
         {renderPartnerCard(PARTNERS.slnt)}
 
-        {/* LAYER 03: DELETEME */}
-        {renderPartnerCard(PARTNERS.deleteme)}
+        {/* LAYER 03: DATA BROKER OPT-OUT HYGIENE */}
+        <View style={[styles.layerCard, { borderLeftColor: '#4ade80' }]}>
+          <View style={styles.layerHeaderRow}>
+            <Text style={[styles.layerBadge, { color: '#4ade80' }]}>
+              LAYER 03 · DATA BROKER & DOSSIER OPT-OUT HYGIENE
+            </Text>
+            <View
+              style={[
+                styles.offerPill,
+                { borderColor: '#4ade8066', backgroundColor: '#4ade8015' },
+              ]}
+            >
+              <Text style={[styles.offerPillText, { color: '#4ade80' }]}>
+                Open-Source Opt-Out Guide
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.layerTitle}>
+            Sever the License-Plate-to-Home-Address Broker Pipeline
+          </Text>
+          <Text style={styles.partnerSub}>
+            Protocol: <Text style={styles.highlight}>Commercial Data Broker & LexisNexis Opt-Out</Text>
+          </Text>
+
+          <View style={styles.threatBox}>
+            <Text style={styles.threatLabel}>⚠️ SURVEILLANCE VECTOR</Text>
+            <Text style={styles.threatBody}>
+              Commercial ALPR networks (DRN, Vigilant, repo spotters) cross-reference plate scans against commercial data brokers (LexisNexis, BeenVerified, Spokeo, Whitepages) to link your vehicle directly to your home address, phone number, relatives, and workplace.
+            </Text>
+          </View>
+
+          <Text style={styles.body}>
+            Even if you avoid municipal cameras, historical plate scans and property records remain indexed in commercial data broker pipelines unless you submit formal CCPA/state privacy opt-out requests.
+          </Text>
+
+          <View style={styles.specsList}>
+            {[
+              'Submit a direct opt-out at optout.lexisnexis.com to restrict Accurint & commercial investigative dossier lookups.',
+              'Purge people-search brokers (Spokeo, Whitepages, BeenVerified, Radaris, TruePeopleSearch) that expose your home address.',
+              'Use the open-source Big Ass Data Broker Opt-Out List on GitHub for step-by-step removal links across hundreds of brokers.',
+            ].map(spec => (
+              <View key={spec} style={styles.specRow}>
+                <Text style={[styles.specCheck, { color: '#4ade80' }]}>✓</Text>
+                <Text style={styles.specText}>{spec}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.partnerCtaBtn, { backgroundColor: '#4ade80', marginTop: 6 }]}
+            onPress={() =>
+              Linking.openURL(
+                'https://github.com/yaelwrites/Big-Ass-Data-Broker-Opt-Out-List',
+              )
+            }
+          >
+            <Text style={styles.partnerCtaText}>
+              Open-Source Data Broker Opt-Out Guide (GitHub) ↗
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* LAYER 04: NAVIGATION TELEMETRY HYGIENE */}
         <View style={[styles.layerCard, { borderLeftColor: '#a78bfa' }]}>
@@ -384,8 +432,8 @@ export function LockdownPage({ navigate }: Props) {
             ⚖️ Open-Source Independence & Partner Disclosure
           </Text>
           <Text style={styles.disclosureBody}>
-            Fourth Route has zero corporate investors, zero paywalls, and zero ad-tech SDKs. When you use code{' '}
-            <Text style={styles.highlight}>{PARTNER_PROMO_CODE}</Text> with vetted privacy hardware and data-removal partners like SLNT® and DeleteMe, or contribute on{' '}
+            Fourth Route has zero corporate investors, zero paywalls, and zero ad-tech SDKs. When you shop through our official partner link with vetted privacy hardware partners like{' '}
+            <Text style={styles.highlight}>SLNT® (slnt.com/FOURTHROUTE)</Text>, or contribute on{' '}
             <Text
               style={styles.link}
               onPress={() => Linking.openURL(KOFI_URL)}

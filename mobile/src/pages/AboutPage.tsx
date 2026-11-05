@@ -219,7 +219,7 @@ export function AboutPage({ navigate }: Props) {
           {[
             ['🛡️ Layer 01 · Fourth Route', 'Free, open-source optical ALPR avoidance across 145,283 mapped cameras and 1,528 police transparency portals.'],
             ['📵 Layer 02 · SLNT® (@goslnt)', `The analog off switch: patented Silent Pocket® Faraday sleeves blocking Cellular, Wi-Fi, Bluetooth, GPS & RFID so your device only connects when you choose (${PARTNERS.slnt.offerBadge}).`],
-            ['🧹 Layer 03 · DeleteMe (@deleteme)', `Automated & human opt-out removals across 500+ data brokers to sever the license-plate-to-home-address lookup chain (${PARTNERS.deleteme.offerBadge}).`],
+            ['🧹 Layer 03 · Data Broker Opt-Out Hygiene', 'Sever the license-plate-to-home-address lookup chain across LexisNexis and commercial people-search brokers using direct CCPA/state privacy opt-outs.'],
             ['📋 Layer 04 · Ephemeral Turn-by-Turn', 'Use Fourth Route\u2019s built-in Turn-by-Turn step list or offline open-source maps so Big Tech navigation apps never log your route history.'],
           ].map(([icon, desc]) => (
             <View key={icon as string} style={styles.stateCard}>
@@ -239,12 +239,6 @@ export function AboutPage({ navigate }: Props) {
               onPress={() => Linking.openURL(PARTNERS.slnt.url)}
             >
               <Text style={[styles.heroBtnText, { color: '#38bdf8' }]}>Go SLNT® (10% Off Link) ↗</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.heroBtn, { backgroundColor: '#13132b', borderWidth: 1, borderColor: '#4ade80' }]}
-              onPress={() => Linking.openURL(PARTNERS.deleteme.url)}
-            >
-              <Text style={[styles.heroBtnText, { color: '#4ade80' }]}>DeleteMe ({PARTNER_PROMO_CODE}) ↗</Text>
             </TouchableOpacity>
           </View>
         </View>
