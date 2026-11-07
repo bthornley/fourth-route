@@ -118,11 +118,13 @@ delete vConfig.buildCommand;
 delete vConfig.installCommand;
 fs.writeFileSync(dstVercel, JSON.stringify(vConfig, null, 2));
 
-// Copy .vercel/project.json so CLI knows which project to deploy to
+// Copy .vercel/project.json (when present locally) so CLI knows which project to deploy to
 const srcProj = path.join(__dirname, '../.vercel/project.json');
-const dstDir  = path.join(__dirname, '../web-build/.vercel');
-fs.mkdirSync(dstDir, { recursive: true });
-fs.copyFileSync(srcProj, path.join(dstDir, 'project.json'));
+if (fs.existsSync(srcProj)) {
+  const dstDir = path.join(__dirname, '../web-build/.vercel');
+  fs.mkdirSync(dstDir, { recursive: true });
+  fs.copyFileSync(srcProj, path.join(dstDir, 'project.json'));
+}
 
 console.log('✅ Copied vercel config to web-build/');
 
