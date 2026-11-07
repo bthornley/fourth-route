@@ -172,7 +172,7 @@ export function LockdownPage({ navigate }: Props) {
         <View style={styles.hero}>
           <View style={styles.statusPill}>
             <Text style={styles.statusPillText}>
-              🛡️ 145,283 CAMERAS MAPPED · 21-STATE ROUTING LIVE
+              🛡️ 146,845 CAMERAS MAPPED · 21-STATE ROUTING LIVE
             </Text>
           </View>
           <Text style={styles.heroTitle}>The 4-Layer Commuter Lockdown</Text>
@@ -285,12 +285,12 @@ export function LockdownPage({ navigate }: Props) {
           </View>
 
           <Text style={styles.body}>
-            Fourth Route pairs a 145,283-camera PostGIS spatial database with a custom Valhalla routing engine that draws 40-meter exclusion polygons around ALPR nodes — computing a clean privacy route alongside the standard route.
+            Fourth Route pairs a 146,845-camera PostGIS spatial database with a custom Valhalla routing engine that draws 40-meter exclusion polygons around ALPR nodes — computing a clean privacy route alongside the standard route.
           </Text>
 
           <View style={styles.specsList}>
             {[
-              '145,283 ALPR cameras mapped across all 50 US states & D.C.',
+              '146,845 ALPR cameras mapped across all 50 US states & D.C.',
               '1,528 verified law enforcement transparency portals inspectable on tap',
               'Live privacy routing across 21 states + D.C. & Delaware I-95 corridor',
               'Right-click or long-press anywhere on the map to self-report new cameras',

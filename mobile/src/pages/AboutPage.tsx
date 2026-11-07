@@ -48,7 +48,7 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.heroEmoji}>⚖️</Text>
           <Text style={styles.heroTitle}>Fourth Route</Text>
           <Text style={styles.heroTagline}>Navigate within your 4th Amendment rights</Text>
-          <Text style={styles.heroSub}>145,283 cameras mapped across all 50 states · Active privacy routing in 21 states + D.C./DE (CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, MD, MA, VA, NC, AZ, CO, WA, OR, ID, DC, DE)</Text>
+          <Text style={styles.heroSub}>146,845 cameras mapped across all 50 states · Active privacy routing in 21 states + D.C./DE (CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, MD, MA, VA, NC, AZ, CO, WA, OR, ID, DC, DE)</Text>
           <TouchableOpacity style={styles.heroBtn} onPress={() => navigate('/')}>
             <Text style={styles.heroBtnText}>Open the map →</Text>
           </TouchableOpacity>
@@ -217,7 +217,7 @@ export function AboutPage({ navigate }: Props) {
             </Text>
           </Text>
           {[
-            ['🛡️ Layer 01 · Fourth Route', 'Free, open-source optical ALPR avoidance across 145,283 mapped cameras and 1,528 police transparency portals.'],
+            ['🛡️ Layer 01 · Fourth Route', 'Free, open-source optical ALPR avoidance across 146,845 mapped cameras and 1,528 police transparency portals.'],
             ['📵 Layer 02 · SLNT® (@goslnt)', `The analog off switch: patented Silent Pocket® Faraday sleeves blocking Cellular, Wi-Fi, Bluetooth, GPS & RFID so your device only connects when you choose (${PARTNERS.slnt.offerBadge}).`],
             ['🧹 Layer 03 · Data Broker Opt-Out Hygiene', 'Sever the license-plate-to-home-address lookup chain across LexisNexis and commercial people-search brokers using direct CCPA/state privacy opt-outs.'],
             ['📋 Layer 04 · Ephemeral Turn-by-Turn', 'Use Fourth Route\u2019s built-in Turn-by-Turn step list or offline open-source maps so Big Tech navigation apps never log your route history.'],
