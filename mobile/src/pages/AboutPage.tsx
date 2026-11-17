@@ -238,7 +238,7 @@ export function AboutPage({ navigate }: Props) {
               style={[styles.heroBtn, { backgroundColor: '#13132b', borderWidth: 1, borderColor: '#38bdf8' }]}
               onPress={() => Linking.openURL(PARTNERS.slnt.url)}
             >
-              <Text style={[styles.heroBtnText, { color: '#38bdf8' }]}>Go SLNT® (10% Off Link) ↗</Text>
+              <Text style={[styles.heroBtnText, { color: '#38bdf8' }]}>{PARTNERS.slnt.shortPillLabel} ↗</Text>
             </TouchableOpacity>
           </View>
         </View>

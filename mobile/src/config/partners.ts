@@ -16,6 +16,7 @@ export interface PartnerConfig {
   offerBadge: string;
   ctaLabel: string;
   shortPillLabel: string;
+  shortHeroSub: string;
   accentColor: string;
 }
 
@@ -23,6 +24,19 @@ export const PARTNER_PROMO_CODE = 'FOURTHROUTE';
 export const KOFI_URL = 'https://ko-fi.com/fourthroute';
 export const INSTAGRAM_URL = 'https://instagram.com/fourthroute';
 export const GITHUB_URL = 'https://github.com/bthornley/fourth-route';
+
+/**
+ * SLNT Black Friday + Cyber Monday window: Nov 18 00:00 ET (05:00Z) through
+ * Nov 30 23:59 PT (Dec 1 07:59Z). Automatically reverts to standard 10% off Dec 1.
+ */
+function isSlntBfcmActive(now = new Date()): boolean {
+  const start = Date.UTC(2026, 10, 18, 5, 0, 0);
+  const end = Date.UTC(2026, 11, 1, 8, 0, 0);
+  const ts = now.getTime();
+  return ts >= start && ts < end;
+}
+
+const slntBfcm = isSlntBfcmActive();
 
 export const PARTNERS: Record<'slnt', PartnerConfig> = {
   slnt: {
@@ -42,13 +56,19 @@ export const PARTNERS: Record<'slnt', PartnerConfig> = {
     ],
     url: 'https://www.slnt.com/FOURTHROUTE',
     promoCode: 'FOURTHROUTE',
-    promoBoxLabel: '10% OFF CODE',
+    promoBoxLabel: slntBfcm ? 'REFERRAL LINK + CODE' : '10% OFF CODE',
     promoBoxValue: 'FOURTHROUTE',
-    seasonalNote:
-      '✓ 10% off is automatically applied when you shop via slnt.com/FOURTHROUTE — or enter code FOURTHROUTE at checkout.',
-    offerBadge: '10% Off via Link or Code FOURTHROUTE',
-    ctaLabel: 'Go SLNT · Shop via Referral Link (10% Off) ↗',
-    shortPillLabel: '📵 Go SLNT® (10% Off)',
+    seasonalNote: slntBfcm
+      ? '🔥 Black Friday + Cyber Monday (Nov 18–30): 20% off sitewide + free gifts ($1+ Privacy Sticker · $150+ RFID Wallet · $250+ Compact Sling) applied automatically via slnt.com/FOURTHROUTE — or use code FOURTHROUTE.'
+      : '✓ 10% off automatically via slnt.com/FOURTHROUTE (or code FOURTHROUTE) · Nov 18–30 BFCM: 20% off sitewide + free tiered gifts ($1+ sticker, $150+ RFID wallet, $250+ sling) via link.',
+    offerBadge: slntBfcm
+      ? '20% Off Sitewide + Free Gifts (Nov 18–30 via FOURTHROUTE)'
+      : '10% Off via Link or Code FOURTHROUTE',
+    ctaLabel: slntBfcm
+      ? 'Go SLNT · Shop BFCM via Referral Link (20% Off + Free Gifts) ↗'
+      : 'Go SLNT · Shop via Referral Link (10% Off) ↗',
+    shortPillLabel: slntBfcm ? '📵 Go SLNT® (20% Off + Free Gifts)' : '📵 Go SLNT® (10% Off)',
+    shortHeroSub: slntBfcm ? '20% Off + Free Gifts ↗' : '10% Off via Link ↗',
     accentColor: '#38bdf8',
   },
 };
