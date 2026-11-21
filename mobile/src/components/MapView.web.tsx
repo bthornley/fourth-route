@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { track } from '@vercel/analytics';
-import { Camera, CameraLocation, API_BASE, fetchCameraAgency } from '../services/api';
+import { Camera, CameraLocation, CameraOverviewCluster, API_BASE, fetchCameraAgency, fetchCameraOverview } from '../services/api';
 
 interface Props {
   privacyLine: [number, number][];
@@ -12,8 +12,9 @@ interface Props {
   flyTo?: { lng: number; lat: number; zoom: number };
 }
 
-const DEFAULT_CENTER: [number, number] = [-122.4194, 37.7749];
-const DEFAULT_ZOOM = 12;
+const DEFAULT_CENTER: [number, number] = [-97.0, 38.5];
+const DEFAULT_ZOOM = 3.8;
+const DETAIL_ZOOM_THRESHOLD = 7.5;
 
 // Lighter map style — easier to read, cameras pop more
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
@@ -80,24 +81,77 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         paint: { 'line-color': '#3b82f6', 'line-width': 5 },
       });
 
-      // Camera dots — dynamic zoom-scaled radius to avoid visual clutter on mobile
+      // Nationwide spatial-density clusters for continental zoom (maxzoom < DETAIL_ZOOM_THRESHOLD)
+      m.addSource('cameras-overview', { type: 'geojson', data: emptyPoints() });
+      m.addLayer({
+        id: 'cameras-overview-glow',
+        type: 'circle',
+        source: 'cameras-overview',
+        maxzoom: DETAIL_ZOOM_THRESHOLD,
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'count'],
+            1, 4.0,
+            25, 8.0,
+            200, 14.0,
+            1000, 22.0,
+          ],
+          'circle-color': '#E74C3C',
+          'circle-opacity': [
+            'interpolate', ['linear'], ['get', 'count'],
+            1, 0.08,
+            50, 0.16,
+            500, 0.25,
+          ],
+        },
+      });
+      m.addLayer({
+        id: 'cameras-overview-dot',
+        type: 'circle',
+        source: 'cameras-overview',
+        maxzoom: DETAIL_ZOOM_THRESHOLD,
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'count'],
+            1, 2.0,
+            15, 3.2,
+            100, 4.8,
+            500, 6.8,
+            1400, 8.5,
+          ],
+          'circle-color': '#E74C3C',
+          'circle-stroke-width': 0.5,
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 0.88,
+        },
+      });
+      m.on('click', 'cameras-overview-dot', (e) => {
+        const coords = (e.features?.[0]?.geometry as any)?.coordinates;
+        if (coords) {
+          m.flyTo({ center: coords, zoom: 10.5, duration: 900 });
+        }
+      });
+      m.on('mouseenter', 'cameras-overview-dot', () => { m.getCanvas().style.cursor = 'pointer'; });
+      m.on('mouseleave', 'cameras-overview-dot', () => { m.getCanvas().style.cursor = ''; });
+
+      // Individual camera dots — rendered at state/metro zoom (minzoom >= DETAIL_ZOOM_THRESHOLD)
       m.addSource('cameras', { type: 'geojson', data: emptyPoints() });
       m.addLayer({
         id: 'cameras-halo',
         type: 'circle',
         source: 'cameras',
+        minzoom: DETAIL_ZOOM_THRESHOLD,
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['zoom'],
-            5, 3.5,
-            9, 7.0,
+            7.5, 6.0,
+            10, 9.0,
             13, 13.0,
           ],
           'circle-color': '#E74C3C',
           'circle-opacity': [
             'interpolate', ['linear'], ['zoom'],
-            5, 0.03,
-            8, 0.07,
+            7.5, 0.07,
             12, 0.16,
           ],
         },
@@ -106,20 +160,19 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         id: 'cameras-dot',
         type: 'circle',
         source: 'cameras',
+        minzoom: DETAIL_ZOOM_THRESHOLD,
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['zoom'],
-            4, 1.8,
-            7, 2.6,
-            10, 4.0,
+            7.5, 3.0,
+            10, 4.2,
             13, 5.5,
             16, 7.5,
           ],
           'circle-color': '#E74C3C',
           'circle-stroke-width': [
             'interpolate', ['linear'], ['zoom'],
-            4, 0.4,
-            7, 0.8,
+            7.5, 0.8,
             11, 1.4,
             14, 2.0,
           ],
@@ -128,7 +181,15 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         },
       });
 
-      // Dynamic camera loading by bounding box
+      // Load nationwide 50-state overview clusters once
+      fetchCameraOverview().then((clusters) => {
+        const src = m.getSource('cameras-overview') as maplibregl.GeoJSONSource;
+        if (src && clusters.length > 0) {
+          src.setData(overviewToGeoJSON(clusters));
+        }
+      });
+
+      // Dynamic individual camera loading by bounding box (only when zoomed past DETAIL_ZOOM_THRESHOLD)
       const fetchCamerasBbox = (bbox: { min_lon: number; min_lat: number; max_lon: number; max_lat: number }) =>
         fetch(`${API_BASE}/cameras/bbox`, {
           method: 'POST',
@@ -144,6 +205,7 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
 
       // Helper to fetch current viewport cameras with a 20% spatial padding buffer
       const loadViewportCameras = () => {
+        if (m.getZoom() < DETAIL_ZOOM_THRESHOLD - 0.3) return;
         const b = m.getBounds();
         const spanLon = b.getEast() - b.getWest();
         const spanLat = b.getNorth() - b.getSouth();
@@ -155,7 +217,7 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         });
       };
 
-      // Load initial viewport cameras on start
+      // Load detail cameras immediately if initial zoom starts zoomed in
       loadViewportCameras();
 
       // Reload by viewport on moveend (debounced) for fast dynamic browsing across all 50 states
@@ -424,6 +486,16 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
   );
 }
 
+function overviewToGeoJSON(clusters: CameraOverviewCluster[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: clusters.map(c => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [c.lon, c.lat] },
+      properties: { count: c.count },
+    })),
+  };
+}
 function camerasToGeoJSON(cams: (Camera | CameraLocation)[]) {
   return {
     type: 'FeatureCollection' as const,

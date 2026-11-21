@@ -12,6 +12,22 @@ export interface Camera {
   confidence: number;
 }
 
+export interface CameraOverviewCluster {
+  lat: number;
+  lon: number;
+  count: number;
+}
+
+export async function fetchCameraOverview(): Promise<CameraOverviewCluster[]> {
+  try {
+    const res = await fetch(`${API_BASE}/cameras/overview`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
 export interface CameraAgencyTransparency {
   camera_id: number;
   statefp?: string;
@@ -166,7 +182,7 @@ function routeError(body: any, status: number, fallback: string): Error {
   const detail = (body?.detail ?? '') as string;
   if (detail.includes('400') || status === 502 || status === 503) {
     return new Error(
-      'Privacy routing is not yet available in this area. Active routing states: CA, NV, TX, GA, IL, IN, MI, FL, OH, NY, PA, NJ, MD, MA, VA, NC, AZ, CO, WA, OR, ID, DC & DE (camera map is live in all 50 states).'
+      'Unable to calculate a driving route between those points right now (check that both addresses are near drivable U.S. roads and try again).'
     );
   }
   return new Error(detail || fallback);

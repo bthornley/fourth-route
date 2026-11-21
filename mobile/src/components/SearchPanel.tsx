@@ -94,7 +94,7 @@ export const STATE_CONFIG: Record<StateKey, {
 
 export const FEATURED_STATES: StateKey[] = ['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'md', 'ma', 'dc', 'de', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id'];
 
-export const ROUTING_STATES = new Set<StateKey>(['all', 'ca', 'nv', 'tx', 'ga', 'il', 'in', 'mi', 'fl', 'oh', 'ny', 'pa', 'nj', 'md', 'ma', 'dc', 'de', 'va', 'nc', 'az', 'co', 'wa', 'or', 'id']);
+export const ROUTING_STATES = new Set<StateKey>(Object.keys(STATE_CONFIG) as StateKey[]);
 
 export interface DemoRoute {
   id: string;

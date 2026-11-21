@@ -1,49 +1,52 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 TILES_TAR="/custom_files/valhalla_tiles.tar"
+VERSION_FILE="/custom_files/.tiles_version"
+TARGET_VERSION="v10-tiles-50states"
+TILES_PARTS="${TILES_PARTS:-partaa partab partac partad partae partaf partag}"
 
-echo "=== Fourth Route — Valhalla 21-state tiles startup (+MD/MA/DC/DE I-95 Bridge) ==="
+echo "=== Fourth Route — Valhalla 50-State + D.C. tiles startup ($TARGET_VERSION) ==="
 mkdir -p /custom_files
 
-TILES_URL="${TILES_URL_V9:-https://github.com/bthornley/fourth-route/releases/download/v9-tiles-21states/valhalla_tiles.tar.gz.partaa}"
+TILES_URL="${TILES_URL_V10:-https://github.com/bthornley/fourth-route/releases/download/v10-tiles-50states/valhalla_tiles.tar.gz.partaa}"
+CURRENT_VERSION="$(cat "$VERSION_FILE" 2>/dev/null || true)"
 
-# Download pre-built tiles if not already present
-if [ ! -f "$TILES_TAR" ]; then
+# Download or upgrade tiles cleanly when missing or version changes
+if [ ! -f "$TILES_TAR" ] || [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
   if [ -z "$TILES_URL" ]; then
     echo "ERROR: TILES_URL environment variable is not set"
     exit 1
   fi
 
+  TMP_TAR="${TILES_TAR}.tmp"
+  rm -f "$TMP_TAR"
+
   if echo "$TILES_URL" | grep -q "partaa"; then
-    TILES_URL_AA="$TILES_URL"
-    TILES_URL_AB="${TILES_URL/partaa/partab}"
-    TILES_URL_AC="${TILES_URL/partaa/partac}"
-    TILES_URL_AD="${TILES_URL/partaa/partad}"
-    TILES_URL_AE="${TILES_URL/partaa/partae}"
-    echo "Streaming 5-part tile archive..."
+    echo "Streaming multi-part tile archive ($TILES_PARTS)..."
     {
-      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AA"
-      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AB"
-      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AC"
-      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AD"
-      curl -L --retry 3 --retry-delay 10 "$TILES_URL_AE"
-    } | gunzip > "$TILES_TAR"
+      for part in $TILES_PARTS; do
+        curl -fL --retry 5 --retry-delay 10 "${TILES_URL/partaa/$part}"
+      done
+    } | gunzip > "$TMP_TAR"
   else
     echo "Downloading single-file tiles from $TILES_URL ..."
-    curl -L --retry 3 --retry-delay 10 --progress-bar "$TILES_URL" \
-      | gunzip > "$TILES_TAR"
+    curl -fL --retry 5 --retry-delay 10 --progress-bar "$TILES_URL" \
+      | gunzip > "$TMP_TAR"
   fi
-  echo "Tiles ready ✓ ($(du -sh $TILES_TAR | cut -f1))"
+
+  mv "$TMP_TAR" "$TILES_TAR"
+  echo "$TARGET_VERSION" > "$VERSION_FILE"
+  echo "Tiles ready ✓ ($(du -sh "$TILES_TAR" | cut -f1))"
 else
-  echo "Tiles already present ✓"
+  echo "Tiles already present ($TARGET_VERSION) ✓"
 fi
 
 # Delete root-owned valhalla.json so run.sh regenerates it cleanly with port 8002
 rm -f /custom_files/valhalla.json
 
-# Start nginx on 8080 → proxies to Valhalla on 8002
-echo "Starting nginx (port 8080 → Valhalla:8002)..."
+# Start nginx on 8080 -> proxies to Valhalla on 8002
+echo "Starting nginx (port 8080 -> Valhalla:8002)..."
 nginx
 
 # Switch to valhalla user for gis-ops run.sh (it requires the valhalla user)

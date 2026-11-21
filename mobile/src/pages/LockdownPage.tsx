@@ -172,7 +172,7 @@ export function LockdownPage({ navigate }: Props) {
         <View style={styles.hero}>
           <View style={styles.statusPill}>
             <Text style={styles.statusPillText}>
-              🛡️ 151,531 CAMERAS MAPPED · 21-STATE ROUTING LIVE
+              🛡️ 151,531 CAMERAS MAPPED · ALL 50 STATES ROUTING LIVE
             </Text>
           </View>
           <Text style={styles.heroTitle}>The 4-Layer Commuter Lockdown</Text>
@@ -196,7 +196,7 @@ export function LockdownPage({ navigate }: Props) {
                 🗺️ Launch Live ALPR Map & Privacy Router →
               </Text>
               <Text style={styles.primaryMapBtnSub}>
-                50-State Camera Map · 1,528 Police Portals · 21-State Avoidance Routing
+                All 50 States Camera Map · 1,528 Police Portals · 50-State Avoidance Routing
               </Text>
             </TouchableOpacity>
 
@@ -292,7 +292,7 @@ export function LockdownPage({ navigate }: Props) {
             {[
               '151,531 ALPR cameras mapped across all 50 US states & D.C.',
               '1,528 verified law enforcement transparency portals inspectable on tap',
-              'Live privacy routing across 21 states + D.C. & Delaware I-95 corridor',
+              'Live camera-avoiding privacy routing across all 50 US states & D.C.',
               'Right-click or long-press anywhere on the map to self-report new cameras',
             ].map(spec => (
               <View key={spec} style={styles.specRow}>

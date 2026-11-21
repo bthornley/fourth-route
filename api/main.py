@@ -5,6 +5,7 @@ Endpoints: camera listing, bounding box query, user reports, sync status
 
 import os
 import math
+import time
 import logging
 from contextlib import asynccontextmanager
 from typing import Generator
@@ -100,6 +101,11 @@ class Camera(BaseModel):
     direction: int | None
     confidence: float
 
+class CameraOverviewCluster(BaseModel):
+    lat: float
+    lon: float
+    count: int
+
 class CameraReport(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
@@ -170,6 +176,34 @@ def list_cameras(
                 (limit,),
             )
         return cur.fetchall()
+
+
+_OVERVIEW_CACHE: dict = {"ts": 0.0, "data": None}
+_OVERVIEW_TTL_S = 3600
+
+
+@app.get("/cameras/overview", response_model=list[CameraOverviewCluster], tags=["Cameras"])
+def cameras_overview(db=Depends(get_db)):
+    """Return 0.25-degree spatial density clusters covering all 50 states for fast continental rendering."""
+    now = time.monotonic()
+    if _OVERVIEW_CACHE["data"] is not None and (now - _OVERVIEW_CACHE["ts"]) < _OVERVIEW_TTL_S:
+        return _OVERVIEW_CACHE["data"]
+
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                ROUND(AVG(ST_Y(geom::geometry))::numeric, 4)::float AS lat,
+                ROUND(AVG(ST_X(geom::geometry))::numeric, 4)::float AS lon,
+                COUNT(*)::int AS count
+            FROM cameras
+            GROUP BY ST_SnapToGrid(geom::geometry, 0.25, 0.25)
+            """
+        )
+        rows = cur.fetchall()
+    _OVERVIEW_CACHE["data"] = rows
+    _OVERVIEW_CACHE["ts"] = now
+    return rows
 
 
 @app.post("/cameras/bbox", response_model=list[Camera], tags=["Cameras"])
