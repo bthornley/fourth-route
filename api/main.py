@@ -432,9 +432,42 @@ def _fetch_civic_context(
                 (agency_slug, agency_slug, state_abbr, state_abbr, city_clean, city_clean),
             )
             federal_awards = cur.fetchall()
+
+        foia_requests = []
+        if agency_slug or (state_abbr and city_clean):
+            cur.execute(
+                """
+                SELECT request_id, agency_slug, agency_name, city, state, title,
+                       status, submitted_at, completed_at, foia_url
+                FROM agency_foia_requests
+                WHERE (%s IS NOT NULL AND agency_slug = %s)
+                   OR (%s IS NOT NULL AND state = %s AND %s IS NOT NULL AND city IS NOT NULL AND lower(city) = lower(%s))
+                ORDER BY (status = 'done') DESC, completed_at DESC NULLS LAST, submitted_at DESC NULLS LAST
+                LIMIT 6
+                """,
+                (agency_slug, agency_slug, state_abbr, state_abbr, city_clean, city_clean),
+            )
+            foia_requests = cur.fetchall()
+
+        court_cases = []
+        if agency_slug or (state_abbr and city_clean):
+            cur.execute(
+                """
+                SELECT case_key, docket_id, agency_slug, city, state, case_name,
+                       court, date_filed, docket_number, case_url, summary
+                FROM agency_court_cases
+                WHERE (%s IS NOT NULL AND agency_slug = %s)
+                   OR (%s IS NOT NULL AND state = %s AND %s IS NOT NULL AND city IS NOT NULL AND lower(city) = lower(%s))
+                ORDER BY date_filed DESC NULLS LAST
+                LIMIT 4
+                """,
+                (agency_slug, agency_slug, state_abbr, state_abbr, city_clean, city_clean),
+            )
+            court_cases = cur.fetchall()
     except Exception as e:
         log.warning(f"Civic context lookup skipped: {e}")
-    return actions, contract, incidents, federal_awards
+        return actions, contract, incidents, federal_awards, [], []
+    return actions, contract, incidents, federal_awards, foia_requests, court_cases
 
 
 @app.get("/cameras/{camera_id}/agency", tags=["Cameras"])
@@ -485,7 +518,7 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
         if not row:
             raise HTTPException(status_code=404, detail="Camera not found")
         state_abbr = STATE_FIPS_TO_ABBR.get(str(row.get("statefp") or "").zfill(2)) if row.get("statefp") else None
-        actions, contract, incidents, federal_awards = _fetch_civic_context(
+        actions, contract, incidents, federal_awards, foia_requests, court_cases = _fetch_civic_context(
             cur,
             row.get("agency_slug"),
             state_abbr,
@@ -498,6 +531,8 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
     result["contract"] = contract
     result["incidents"] = incidents
     result["federal_awards"] = federal_awards
+    result["foia_requests"] = foia_requests
+    result["court_cases"] = court_cases
     return result
 
 
@@ -600,7 +635,7 @@ def get_agency(slug: str, db=Depends(get_db)):
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agency portal not found")
-        actions, contract, incidents, federal_awards = _fetch_civic_context(
+        actions, contract, incidents, federal_awards, foia_requests, court_cases = _fetch_civic_context(
             cur, row.get("slug"), row.get("state"), row.get("city"), row.get("county")
         )
     result = dict(row)
@@ -608,6 +643,8 @@ def get_agency(slug: str, db=Depends(get_db)):
     result["contract"] = contract
     result["incidents"] = incidents
     result["federal_awards"] = federal_awards
+    result["foia_requests"] = foia_requests
+    result["court_cases"] = court_cases
     return result
 
 
@@ -698,6 +735,40 @@ def get_civic_feed(
         )
         federal_awards = cur.fetchall()
 
+        cur.execute(
+            f"""
+            SELECT request_id, agency_slug, agency_name, city, state, title,
+                   status, submitted_at, completed_at, foia_url
+            FROM agency_foia_requests
+            {geo_where}
+            ORDER BY (status = 'done') DESC, completed_at DESC NULLS LAST, submitted_at DESC NULLS LAST
+            LIMIT 60
+            """,
+            geo_params,
+        )
+        foia_requests = cur.fetchall()
+
+        cur.execute(
+            f"""
+            SELECT COUNT(*)::int AS cnt FROM agency_foia_requests {geo_where}
+            """,
+            geo_params,
+        )
+        foia_total = (cur.fetchone() or {}).get("cnt", len(foia_requests))
+
+        cur.execute(
+            f"""
+            SELECT case_key, docket_id, agency_slug, city, state, case_name,
+                   court, date_filed, docket_number, case_url, summary
+            FROM agency_court_cases
+            {geo_where}
+            ORDER BY date_filed DESC NULLS LAST
+            LIMIT 40
+            """,
+            geo_params,
+        )
+        court_cases = cur.fetchall()
+
     return {
         "summary": {
             "total_actions": len(actions),
@@ -706,11 +777,15 @@ def get_civic_feed(
             "state_laws_count": sum(1 for a in actions if a.get("action_type") == "statute_cap"),
             "incidents_count": len(incidents),
             "federal_awards_count": len(federal_awards),
+            "foia_requests_count": foia_total,
+            "court_cases_count": len(court_cases),
         },
         "actions": actions,
         "contracts": contracts,
         "incidents": incidents,
         "federal_awards": federal_awards,
+        "foia_requests": foia_requests,
+        "court_cases": court_cases,
     }
 
 

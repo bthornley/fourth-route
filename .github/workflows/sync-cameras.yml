@@ -37,6 +37,21 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: python etl/sync_usaspending.py
 
+      - name: Sync MuckRock FOIA disclosures (when secret configured)
+        if: success()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          MUCKROCK_USERNAME: ${{ secrets.MUCKROCK_USERNAME }}
+          MUCKROCK_PASSWORD: ${{ secrets.MUCKROCK_PASSWORD }}
+        run: python etl/sync_muckrock.py
+
+      - name: Sync CourtListener ALPR dockets (when secret configured)
+        if: success()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          COURTLISTENER_API_TOKEN: ${{ secrets.COURTLISTENER_API_TOKEN }}
+        run: python etl/sync_courtlistener.py
+
       - name: Refresh accountability views & check portal snapshot freshness
         if: success()
         env:

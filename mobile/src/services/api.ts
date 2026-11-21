@@ -88,6 +88,33 @@ export interface FederalAwardRecord {
   source_url: string;
 }
 
+export interface AgencyFoiaRequestRecord {
+  request_id: number;
+  agency_slug?: string;
+  agency_name: string;
+  city?: string;
+  state?: string;
+  title: string;
+  status: string;
+  submitted_at?: string;
+  completed_at?: string;
+  foia_url: string;
+}
+
+export interface AgencyCourtCaseRecord {
+  case_key: string;
+  docket_id?: number;
+  agency_slug?: string;
+  city?: string;
+  state?: string;
+  case_name: string;
+  court?: string;
+  date_filed?: string;
+  docket_number?: string;
+  case_url: string;
+  summary?: string;
+}
+
 export interface CameraAgencyTransparency {
   camera_id: number;
   statefp?: string;
@@ -121,6 +148,8 @@ export interface CameraAgencyTransparency {
   contract?: AgencyContractRecord | null;
   incidents?: AgencyIncidentRecord[];
   federal_awards?: FederalAwardRecord[];
+  foia_requests?: AgencyFoiaRequestRecord[];
+  court_cases?: AgencyCourtCaseRecord[];
 }
 
 export async function fetchCameraAgency(cameraId: number): Promise<CameraAgencyTransparency | null> {
@@ -403,6 +432,8 @@ export interface AgencyPortalDetail extends AgencyPortalSummaryItem {
   contract?: AgencyContractRecord | null;
   incidents?: AgencyIncidentRecord[];
   federal_awards?: FederalAwardRecord[];
+  foia_requests?: AgencyFoiaRequestRecord[];
+  court_cases?: AgencyCourtCaseRecord[];
 }
 
 export interface CivicFeedSummary {
@@ -412,6 +443,8 @@ export interface CivicFeedSummary {
   state_laws_count: number;
   incidents_count?: number;
   federal_awards_count?: number;
+  foia_requests_count?: number;
+  court_cases_count?: number;
 }
 
 export interface CivicFeedResponse {
@@ -420,6 +453,8 @@ export interface CivicFeedResponse {
   contracts: AgencyContractRecord[];
   incidents?: AgencyIncidentRecord[];
   federal_awards?: FederalAwardRecord[];
+  foia_requests?: AgencyFoiaRequestRecord[];
+  court_cases?: AgencyCourtCaseRecord[];
 }
 
 export async function fetchCivicFeed(params: {

@@ -429,3 +429,48 @@ CREATE INDEX IF NOT EXISTS idx_federal_awards_geo ON federal_alpr_awards (state,
 
 ALTER TABLE federal_alpr_awards ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE federal_alpr_awards FROM anon, authenticated, PUBLIC;
+
+-- 6) Filed Public Records / FOIA Requests (synced from MuckRock API v2)
+CREATE TABLE IF NOT EXISTS agency_foia_requests (
+    request_id         INTEGER PRIMARY KEY,
+    agency_slug        TEXT,
+    muckrock_agency_id INTEGER,
+    agency_name        TEXT NOT NULL,
+    city               TEXT,
+    state              CHAR(2),
+    title              TEXT NOT NULL,
+    status             TEXT NOT NULL,
+    submitted_at       DATE,
+    completed_at       DATE,
+    foia_url           TEXT NOT NULL,
+    synced_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_foia_slug ON agency_foia_requests (agency_slug);
+CREATE INDEX IF NOT EXISTS idx_foia_geo ON agency_foia_requests (state, lower(city));
+
+ALTER TABLE agency_foia_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE agency_foia_requests FROM anon, authenticated, PUBLIC;
+
+-- 7) Federal Court Dockets & Lawsuits (ready for CourtListener API v4)
+CREATE TABLE IF NOT EXISTS agency_court_cases (
+    id                 SERIAL PRIMARY KEY,
+    case_key           TEXT UNIQUE NOT NULL,
+    docket_id          BIGINT,
+    agency_slug        TEXT,
+    city               TEXT,
+    state              CHAR(2),
+    case_name          TEXT NOT NULL,
+    court              TEXT,
+    date_filed         DATE,
+    docket_number      TEXT,
+    case_url           TEXT NOT NULL,
+    summary            TEXT,
+    synced_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_court_slug ON agency_court_cases (agency_slug);
+CREATE INDEX IF NOT EXISTS idx_court_geo ON agency_court_cases (state, lower(city));
+
+ALTER TABLE agency_court_cases ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE agency_court_cases FROM anon, authenticated, PUBLIC;

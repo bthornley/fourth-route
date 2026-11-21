@@ -446,6 +446,12 @@ export function PortalsPage({ navigate }: Props) {
                     </Text>
                     <Text style={styles.kpiLabel}>Federal Awards (USASpending)</Text>
                   </View>
+                  <View style={[styles.kpiCard, { borderColor: '#3b82f644' }]}>
+                    <Text style={[styles.kpiValue, { color: '#93c5fd' }]}>
+                      {civicFeed.summary.foia_requests_count ?? 0}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Filed FOIAs (MuckRock)</Text>
+                  </View>
                 </View>
 
                 {civicFeed.contracts.length > 0 && (
@@ -620,6 +626,91 @@ export function PortalsPage({ navigate }: Props) {
                           )}
                           <TouchableOpacity onPress={() => Linking.openURL(aw.source_url)}>
                             <Text style={styles.sourceCiteText}>USASpending Award #{aw.award_id} ↗</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {civicFeed.foia_requests && civicFeed.foia_requests.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>FILED FOIA / PUBLIC RECORDS REQUESTS (MUCKROCK)</Text>
+                    {civicFeed.foia_requests.map(fr => {
+                      const isDone = fr.status === 'done';
+                      return (
+                        <View key={fr.request_id} style={styles.agencyCard}>
+                          <View style={styles.cardTopRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.agencyName}>{fr.title}</Text>
+                              <Text style={styles.agencyLoc}>
+                                {fr.agency_name}
+                                {fr.city ? ` · ${fr.city}` : ''}
+                                {fr.state ? ` · ${fr.state}` : ''}
+                                {fr.submitted_at ? ` · Filed ${fr.submitted_at}` : ''}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.auditBadge,
+                                isDone ? styles.auditBadgeOk : styles.statuteBadge,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.auditBadgeText,
+                                  { color: isDone ? '#4ade80' : '#93c5fd' },
+                                ]}
+                              >
+                                {isDone ? 'DISCLOSURE RELEASED ✓' : fr.status.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.civicCardActions}>
+                            {fr.agency_slug && (
+                              <TouchableOpacity
+                                style={styles.civicActionLink}
+                                onPress={() => setSelectedSlug(fr.agency_slug!)}
+                              >
+                                <Text style={styles.civicActionLinkText}>Open Agency Dossier →</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={() => Linking.openURL(fr.foia_url)}>
+                              <Text style={styles.sourceCiteText}>View FOIA #{fr.request_id} on MuckRock ↗</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {civicFeed.court_cases && civicFeed.court_cases.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>FEDERAL COURT DOCKETS &amp; LAWSUITS (COURTLISTENER)</Text>
+                    {civicFeed.court_cases.map(cc => (
+                      <View key={cc.case_key} style={[styles.agencyCard, { borderColor: '#ef444444' }]}>
+                        <View style={styles.cardTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.agencyName}>{cc.case_name}</Text>
+                            <Text style={styles.agencyLoc}>
+                              {cc.court || 'Federal Court'}
+                              {cc.docket_number ? ` · Docket #${cc.docket_number}` : ''}
+                              {cc.date_filed ? ` · Filed ${cc.date_filed}` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.civicCardActions}>
+                          {cc.agency_slug && (
+                            <TouchableOpacity
+                              style={styles.civicActionLink}
+                              onPress={() => setSelectedSlug(cc.agency_slug!)}
+                            >
+                              <Text style={styles.civicActionLinkText}>Open Agency Dossier →</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity onPress={() => Linking.openURL(cc.case_url)}>
+                            <Text style={styles.sourceCiteText}>View Docket on CourtListener ↗</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1157,6 +1248,51 @@ export function PortalsPage({ navigate }: Props) {
                           </Text>
                           <Text style={styles.policyText}>{aw.description}</Text>
                         </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {detail.foia_requests && detail.foia_requests.length > 0 && (
+                  <View style={[styles.policyBox, { borderColor: '#3b82f655' }]}>
+                    <Text style={[styles.sectionMiniTitle, { color: '#93c5fd' }]}>FILED FOIA / PUBLIC RECORDS REQUESTS (MUCKROCK)</Text>
+                    <View style={{ gap: 8 }}>
+                      {detail.foia_requests.map(fr => (
+                        <TouchableOpacity
+                          key={fr.request_id}
+                          style={styles.dossierCivicItem}
+                          onPress={() => Linking.openURL(fr.foia_url)}
+                        >
+                          <Text style={styles.dossierCivicTitle}>
+                            {fr.status === 'done' ? '✓ RELEASED · ' : `[${fr.status.toUpperCase()}] `}{fr.title} ↗
+                          </Text>
+                          <Text style={styles.policyText}>
+                            Filed {fr.submitted_at || 'date unlisted'}
+                            {fr.completed_at ? ` · Completed ${fr.completed_at}` : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {detail.court_cases && detail.court_cases.length > 0 && (
+                  <View style={[styles.policyBox, { borderColor: '#ef444455' }]}>
+                    <Text style={[styles.sectionMiniTitle, { color: '#fca5a5' }]}>FEDERAL COURT DOCKETS (COURTLISTENER)</Text>
+                    <View style={{ gap: 8 }}>
+                      {detail.court_cases.map(cc => (
+                        <TouchableOpacity
+                          key={cc.case_key}
+                          style={styles.dossierCivicItem}
+                          onPress={() => Linking.openURL(cc.case_url)}
+                        >
+                          <Text style={styles.dossierCivicTitle}>{cc.case_name} ↗</Text>
+                          <Text style={styles.policyText}>
+                            {cc.court || 'Federal Court'}
+                            {cc.docket_number ? ` · #${cc.docket_number}` : ''}
+                            {cc.date_filed ? ` · ${cc.date_filed}` : ''}
+                          </Text>
+                        </TouchableOpacity>
                       ))}
                     </View>
                   </View>

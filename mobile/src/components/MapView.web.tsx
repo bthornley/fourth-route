@@ -629,6 +629,46 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               container.appendChild(fBox);
             });
 
+            // Filed MuckRock FOIA disclosures
+            const foiaList = Array.isArray(agency.foia_requests) ? agency.foia_requests.slice(0, 2) : [];
+            foiaList.forEach(fr => {
+              const foiaLink = document.createElement('a');
+              foiaLink.href = fr.foia_url;
+              foiaLink.target = '_blank';
+              foiaLink.rel = 'noopener noreferrer';
+              foiaLink.style.display = 'block';
+              foiaLink.style.background = '#f8fafc';
+              foiaLink.style.border = '1px solid #cbd5e1';
+              foiaLink.style.borderRadius = '6px';
+              foiaLink.style.padding = '5px 8px';
+              foiaLink.style.marginBottom = '6px';
+              foiaLink.style.fontSize = '10.5px';
+              foiaLink.style.color = '#1e293b';
+              foiaLink.style.textDecoration = 'none';
+              foiaLink.textContent = `📂 FOIA (${fr.status === 'done' ? 'Released' : fr.status}): ${fr.title} ↗`;
+              container.appendChild(foiaLink);
+            });
+
+            // Pending / federal court dockets (CourtListener)
+            const courtList = Array.isArray(agency.court_cases) ? agency.court_cases.slice(0, 1) : [];
+            courtList.forEach(cc => {
+              const cLink = document.createElement('a');
+              cLink.href = cc.case_url;
+              cLink.target = '_blank';
+              cLink.rel = 'noopener noreferrer';
+              cLink.style.display = 'block';
+              cLink.style.background = '#fef2f2';
+              cLink.style.border = '1px solid #fecaca';
+              cLink.style.borderRadius = '6px';
+              cLink.style.padding = '5px 8px';
+              cLink.style.marginBottom = '6px';
+              cLink.style.fontSize = '10.5px';
+              cLink.style.color = '#7f1d1d';
+              cLink.style.textDecoration = 'none';
+              cLink.textContent = `⚖️ Lawsuit: ${cc.case_name} ↗`;
+              container.appendChild(cLink);
+            });
+
             // Portal link if available
             if (agency.portal_url) {
               const link = document.createElement('a');
