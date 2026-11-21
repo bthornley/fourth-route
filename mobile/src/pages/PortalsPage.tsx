@@ -452,6 +452,12 @@ export function PortalsPage({ navigate }: Props) {
                     </Text>
                     <Text style={styles.kpiLabel}>Filed FOIAs (MuckRock)</Text>
                   </View>
+                  <View style={[styles.kpiCard, { borderColor: '#ef444444' }]}>
+                    <Text style={[styles.kpiValue, { color: '#fca5a5' }]}>
+                      {civicFeed.summary.court_cases_count ?? 0}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Court Dockets (CourtListener)</Text>
+                  </View>
                 </View>
 
                 {civicFeed.contracts.length > 0 && (
