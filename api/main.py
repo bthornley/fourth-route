@@ -354,6 +354,7 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
                 portal_hotlist_hits_30d,
                 portal_hotlist_hit_rate,
                 portal_sharing_partners_count,
+                portal_receiving_partners_count,
                 portal_sharing_partners,
                 portal_prohibited_uses,
                 portal_public_search_audit,

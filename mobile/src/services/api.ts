@@ -49,6 +49,7 @@ export interface CameraAgencyTransparency {
   portal_hotlist_hits_30d?: number;
   portal_hotlist_hit_rate?: number;
   portal_sharing_partners_count?: number;
+  portal_receiving_partners_count?: number;
   portal_sharing_partners?: string[];
   portal_prohibited_uses?: string;
   portal_public_search_audit?: boolean;

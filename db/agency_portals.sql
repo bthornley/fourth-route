@@ -67,7 +67,8 @@ SELECT
   ap.public_search_audit AS portal_public_search_audit,
   ap.data_last_updated AS portal_last_updated,
   (ap.slug IS NOT NULL) AS has_verified_portal,
-  'Eyes on Flock (CC BY-SA 4.0)' AS data_attribution
+  'Eyes on Flock (CC BY-SA 4.0)' AS data_attribution,
+  ap.receiving_organization_count AS portal_receiving_partners_count
 FROM camera_jurisdiction cj
 LEFT JOIN LATERAL (
   SELECT
@@ -100,16 +101,20 @@ LEFT JOIN LATERAL (
         OR lower(cj.owner_name) LIKE '%' || lower(p.city) || '%police%'
       ))
       OR
-      -- City PD match
-      (cj.jurisdiction_level = 'city' AND p.agency_type = 'PD' AND (
-        lower(p.city) = lower(cj.place_name)
-        OR lower(cj.place_name) LIKE lower(p.city) || '%'
-        OR lower(p.city) LIKE lower(cj.place_name) || '%'
+      -- City PD match (skip when OSM explicitly tags camera as private/retail/HOA, state, federal, or transit/port)
+      (cj.jurisdiction_level = 'city'
+        AND cj.owner_type IN ('police', 'local_government', 'unspecified')
+        AND p.agency_type = 'PD' AND (
+          lower(p.city) = lower(cj.place_name)
+          OR lower(cj.place_name) LIKE lower(p.city) || '%'
+          OR lower(p.city) LIKE lower(cj.place_name) || '%'
       ))
       OR
-      -- County SD match (for unincorporated county cameras)
-      (cj.jurisdiction_level = 'county' AND p.agency_type = 'SD' AND (
-        lower(replace(p.county, ' County', '')) = lower(replace(cj.county_name, ' County', ''))
+      -- County SD match (unincorporated county cameras; skip explicit private/state/federal tags)
+      (cj.jurisdiction_level = 'county'
+        AND cj.owner_type IN ('police', 'local_government', 'unspecified')
+        AND p.agency_type = 'SD' AND (
+          lower(replace(p.county, ' County', '')) = lower(replace(cj.county_name, ' County', ''))
       ))
     )
   ORDER BY
@@ -121,6 +126,9 @@ LEFT JOIN LATERAL (
     END
   LIMIT 1
 ) ap ON true;
+
+REVOKE ALL ON public.camera_agency FROM anon, authenticated, PUBLIC;
+ALTER VIEW public.camera_agency SET (security_invoker = true);
 
 COMMENT ON VIEW camera_agency IS
   'Camera -> verified agency transparency portal (retention, searches, sharing reach). Data from Eyes on Flock (CC BY-SA 4.0).';

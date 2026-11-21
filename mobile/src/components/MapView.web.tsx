@@ -340,18 +340,33 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
             nameEl.textContent = agency.display_agency_name || props.operator || 'Law Enforcement Agency';
             headerRow.appendChild(nameEl);
 
-            if (agency.has_verified_portal) {
+            const makeBadge = (label: string, bg: string, fg: string, border: string) => {
               const badge = document.createElement('span');
-              badge.style.background = '#ecfdf5';
-              badge.style.color = '#059669';
+              badge.style.background = bg;
+              badge.style.color = fg;
               badge.style.fontSize = '9px';
               badge.style.fontWeight = '700';
               badge.style.padding = '2px 5px';
               badge.style.borderRadius = '10px';
-              badge.style.border = '1px solid #a7f3d0';
+              badge.style.border = `1px solid ${border}`;
               badge.style.whiteSpace = 'nowrap';
-              badge.textContent = 'Portal Verified';
-              headerRow.appendChild(badge);
+              badge.textContent = label;
+              return badge;
+            };
+
+            if (agency.has_verified_portal) {
+              headerRow.appendChild(makeBadge('Portal Verified', '#ecfdf5', '#059669', '#a7f3d0'));
+            } else {
+              const ownerStyles: Record<string, [string, string, string, string]> = {
+                private: ['Private / Retail / HOA', '#fffbeb', '#b45309', '#fde68a'],
+                state: ['State / Federal', '#eff6ff', '#1d4ed8', '#bfdbfe'],
+                federal: ['State / Federal', '#eff6ff', '#1d4ed8', '#bfdbfe'],
+                police: ['Municipal / Sheriff', '#f1f5f9', '#475569', '#cbd5e1'],
+                local_government: ['Municipal / Sheriff', '#f1f5f9', '#475569', '#cbd5e1'],
+              };
+              const [lbl, bg, fg, brd] =
+                ownerStyles[agency.owner_type || ''] || ['Unverified Owner', '#f1f5f9', '#64748b', '#cbd5e1'];
+              headerRow.appendChild(makeBadge(lbl, bg, fg, brd));
             }
             container.appendChild(headerRow);
 
@@ -377,20 +392,151 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
             grid.style.gap = '6px';
             grid.style.fontSize = '11px';
 
-            const retBox = document.createElement('div');
-            retBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">Retention:</span><strong>${agency.portal_retention_days ? `${agency.portal_retention_days} days` : 'Not disclosed'}</strong>`;
-            grid.appendChild(retBox);
+            const appendStatCell = (label: string, value: string, spanTwo = false) => {
+              const cell = document.createElement('div');
+              if (spanTwo) cell.style.gridColumn = 'span 2';
+              const lblEl = document.createElement('span');
+              lblEl.style.color = '#64748b';
+              lblEl.style.fontSize = '10px';
+              lblEl.style.display = 'block';
+              lblEl.textContent = label;
+              const valEl = document.createElement('strong');
+              valEl.textContent = value;
+              cell.appendChild(lblEl);
+              cell.appendChild(valEl);
+              grid.appendChild(cell);
+            };
 
-            const searchBox = document.createElement('div');
-            searchBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">30d Searches:</span><strong>${agency.portal_searches_30d !== null && agency.portal_searches_30d !== undefined ? agency.portal_searches_30d.toLocaleString() : 'Not disclosed'}</strong>`;
-            grid.appendChild(searchBox);
+            appendStatCell(
+              'Retention:',
+              agency.portal_retention_days ? `${agency.portal_retention_days} days` : 'Not disclosed'
+            );
+            appendStatCell(
+              '30d Searches:',
+              agency.portal_searches_30d !== null && agency.portal_searches_30d !== undefined
+                ? agency.portal_searches_30d.toLocaleString()
+                : 'Not disclosed'
+            );
 
-            const shareBox = document.createElement('div');
-            shareBox.style.gridColumn = 'span 2';
-            shareBox.innerHTML = `<span style="color:#64748b; font-size:10px; display:block;">Data Sharing Reach:</span><strong>${agency.portal_sharing_partners_count !== null && agency.portal_sharing_partners_count !== undefined ? `Shared with ${agency.portal_sharing_partners_count} partner agencies` : 'Local only / Not disclosed'}</strong>`;
-            grid.appendChild(shareBox);
+            const hasReceivingCount =
+              agency.portal_receiving_partners_count !== null &&
+              agency.portal_receiving_partners_count !== undefined;
+            appendStatCell(
+              hasReceivingCount ? 'Outgoing Shares:' : 'Data Sharing Reach:',
+              agency.portal_sharing_partners_count !== null &&
+                agency.portal_sharing_partners_count !== undefined
+                ? hasReceivingCount
+                  ? `${agency.portal_sharing_partners_count} agencies`
+                  : `Shared with ${agency.portal_sharing_partners_count} partner agencies`
+                : 'Local only / Not disclosed',
+              !hasReceivingCount
+            );
+
+            if (hasReceivingCount) {
+              appendStatCell(
+                'Incoming Feeds:',
+                `${agency.portal_receiving_partners_count} agencies`
+              );
+            }
+
+            if (
+              agency.has_verified_portal ||
+              (agency.portal_public_search_audit !== null &&
+                agency.portal_public_search_audit !== undefined)
+            ) {
+              appendStatCell(
+                'Public Search Audit:',
+                agency.portal_public_search_audit ? 'Published ✓' : 'Not Publicly Published',
+                true
+              );
+            }
 
             container.appendChild(grid);
+
+            const partners = Array.isArray(agency.portal_sharing_partners)
+              ? agency.portal_sharing_partners.filter(Boolean)
+              : [];
+            const prohibitedUses = (agency.portal_prohibited_uses || '').trim();
+            if (partners.length > 0 || prohibitedUses) {
+              const toggleBtn = document.createElement('button');
+              toggleBtn.type = 'button';
+              const baseLabel =
+                partners.length > 0 && prohibitedUses
+                  ? `View ${partners.length} Shared Partners & Policy`
+                  : partners.length > 0
+                    ? `View ${partners.length} Shared Partner Agencies`
+                    : 'View Prohibited Uses Policy';
+              toggleBtn.textContent = `${baseLabel} ▾`;
+              toggleBtn.style.width = '100%';
+              toggleBtn.style.background = '#f1f5f9';
+              toggleBtn.style.border = '1px solid #cbd5e1';
+              toggleBtn.style.borderRadius = '5px';
+              toggleBtn.style.padding = '5px 8px';
+              toggleBtn.style.fontSize = '10.5px';
+              toggleBtn.style.fontWeight = '600';
+              toggleBtn.style.color = '#1e293b';
+              toggleBtn.style.cursor = 'pointer';
+              toggleBtn.style.marginBottom = '6px';
+              toggleBtn.style.textAlign = 'left';
+
+              const detailsPanel = document.createElement('div');
+              detailsPanel.style.display = 'none';
+              detailsPanel.style.background = '#f8fafc';
+              detailsPanel.style.border = '1px solid #e2e8f0';
+              detailsPanel.style.borderRadius = '5px';
+              detailsPanel.style.padding = '6px 8px';
+              detailsPanel.style.marginBottom = '6px';
+              detailsPanel.style.maxHeight = '140px';
+              detailsPanel.style.overflowY = 'auto';
+              detailsPanel.style.fontSize = '10.5px';
+              detailsPanel.style.color = '#334155';
+
+              if (prohibitedUses) {
+                const policyTitle = document.createElement('div');
+                policyTitle.style.fontWeight = '700';
+                policyTitle.style.color = '#0f172a';
+                policyTitle.style.marginBottom = '2px';
+                policyTitle.textContent = 'Prohibited Uses:';
+                const policyText = document.createElement('div');
+                policyText.style.marginBottom = partners.length > 0 ? '6px' : '0';
+                policyText.textContent = prohibitedUses;
+                detailsPanel.appendChild(policyTitle);
+                detailsPanel.appendChild(policyText);
+              }
+
+              if (partners.length > 0) {
+                const partnersTitle = document.createElement('div');
+                partnersTitle.style.fontWeight = '700';
+                partnersTitle.style.color = '#0f172a';
+                partnersTitle.style.marginBottom = '2px';
+                partnersTitle.textContent = `Shared Partner Agencies (${partners.length}):`;
+                detailsPanel.appendChild(partnersTitle);
+
+                const shown = partners.slice(0, 15);
+                const listEl = document.createElement('div');
+                listEl.style.lineHeight = '1.35';
+                listEl.textContent = shown.join(' · ');
+                detailsPanel.appendChild(listEl);
+
+                if (partners.length > 15) {
+                  const moreEl = document.createElement('div');
+                  moreEl.style.marginTop = '3px';
+                  moreEl.style.fontStyle = 'italic';
+                  moreEl.style.color = '#64748b';
+                  moreEl.textContent = `…and ${partners.length - 15} more partner agencies`;
+                  detailsPanel.appendChild(moreEl);
+                }
+              }
+
+              toggleBtn.addEventListener('click', () => {
+                const isOpen = detailsPanel.style.display === 'block';
+                detailsPanel.style.display = isOpen ? 'none' : 'block';
+                toggleBtn.textContent = `${baseLabel} ${isOpen ? '▾' : '▴'}`;
+              });
+
+              container.appendChild(toggleBtn);
+              container.appendChild(detailsPanel);
+            }
 
             // Portal link if available
             if (agency.portal_url) {

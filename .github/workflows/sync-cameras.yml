@@ -31,6 +31,28 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: python etl/fetch_cameras.py --region ${{ github.event.inputs.region || 'all' }}
 
+      - name: Refresh accountability views & check portal snapshot freshness
+        if: success()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          python3 - <<'EOF'
+          import os, psycopg2
+          from pathlib import Path
+          conn = psycopg2.connect(os.environ["DATABASE_URL"])
+          conn.autocommit = True
+          cur = conn.cursor()
+          for sql_path in ("db/jurisdictions.sql", "db/agency_portals.sql"):
+              cur.execute(Path(sql_path).read_text(encoding="utf-8"))
+          cur.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE has_verified_portal) FROM camera_agency")
+          cam_total, portal_matched = cur.fetchone()
+          cur.execute("SELECT COUNT(*), MAX(last_updated), MIN(last_updated) FROM agency_portals")
+          portals, newest, oldest = cur.fetchone()
+          conn.close()
+          print(f"Accountability views refreshed: {cam_total:,} cameras ({portal_matched:,} matched to verified portals)")
+          print(f"Agency portals catalog: {portals:,} portals (updated range: {oldest} .. {newest})")
+          EOF
+
       - name: Report camera count
         if: always()
         env:

@@ -70,5 +70,8 @@ SELECT
   END AS owner_type
 FROM base;
 
+REVOKE ALL ON public.camera_jurisdiction FROM anon, authenticated, PUBLIC;
+ALTER VIEW public.camera_jurisdiction SET (security_invoker = true);
+
 COMMENT ON VIEW camera_jurisdiction IS
   'Camera -> city/county (Census boundaries) + owner type parsed from OSM operator tag. Jurisdiction is location, not proof of operator.';
