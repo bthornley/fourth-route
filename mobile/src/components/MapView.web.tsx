@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { track } from '@vercel/analytics';
 import { Camera, CameraLocation, CameraOverviewCluster, API_BASE, fetchCameraAgency, fetchCameraOverview } from '../services/api';
+import { classifySharingPartners, getVendorEcosystemNote } from '../utils/networkIntelligence';
 
 interface Props {
   privacyLine: [number, number][];
@@ -668,6 +669,48 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               cLink.textContent = `⚖️ Lawsuit: ${cc.case_name} ↗`;
               container.appendChild(cLink);
             });
+
+            // Highlight non-local intelligence clearinghouses, federal partners & insurance bureaus
+            const eco = classifySharingPartners(partners);
+            const ecoParts: string[] = [];
+            if (eco.fusionCenters.length > 0) ecoParts.push(`🛰️ ${eco.fusionCenters.length} Fusion/Intel`);
+            if (eco.federalPartners.length > 0) ecoParts.push(`🏛️ ${eco.federalPartners.length} Federal`);
+            if (eco.insuranceAndState.length > 0) ecoParts.push(`🛡️ ${eco.insuranceAndState.length} Insurance/State`);
+            if (ecoParts.length > 0) {
+              const ecoBox = document.createElement('div');
+              ecoBox.style.background = '#eef2ff';
+              ecoBox.style.border = '1px solid #c7d2fe';
+              ecoBox.style.borderRadius = '6px';
+              ecoBox.style.padding = '5px 8px';
+              ecoBox.style.marginBottom = '6px';
+              ecoBox.style.fontSize = '10.5px';
+              ecoBox.style.fontWeight = '600';
+              ecoBox.style.color = '#312e81';
+              ecoBox.textContent = `Non-Local Clearinghouses: ${ecoParts.join(' · ')}`;
+              container.appendChild(ecoBox);
+            }
+
+            // Commercial / private vendor ecosystem context
+            const vendorNote = getVendorEcosystemNote(agency.operator || props.operator, agency.owner_type);
+            if (vendorNote) {
+              const vBox = document.createElement('div');
+              vBox.style.background = vendorNote.tone === 'warn' ? '#fffbeb' : '#f8fafc';
+              vBox.style.border = `1px solid ${vendorNote.tone === 'warn' ? '#fde68a' : '#e2e8f0'}`;
+              vBox.style.borderRadius = '6px';
+              vBox.style.padding = '5px 8px';
+              vBox.style.marginBottom = '6px';
+              vBox.style.fontSize = '10px';
+              vBox.style.lineHeight = '1.35';
+              vBox.style.color = '#334155';
+              const vTitle = document.createElement('div');
+              vTitle.style.fontWeight = '700';
+              vTitle.textContent = vendorNote.label;
+              const vBody = document.createElement('div');
+              vBody.textContent = vendorNote.detail;
+              vBox.appendChild(vTitle);
+              vBox.appendChild(vBody);
+              container.appendChild(vBox);
+            }
 
             // Portal link if available
             if (agency.portal_url) {

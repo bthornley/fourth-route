@@ -24,6 +24,7 @@ import {
   AgencyAuditFilter,
   CivicFeedResponse,
 } from '../services/api';
+import { classifySharingPartners } from '../utils/networkIntelligence';
 
 interface Props {
   navigate: (path: string) => void;
@@ -1312,6 +1313,52 @@ export function PortalsPage({ navigate }: Props) {
                     </View>
                   </View>
                 )}
+
+                {/* Fusion Centers / Federal Agencies / Insurance Clearinghouses */}
+                {(() => {
+                  const eco = classifySharingPartners(detail.organizations_shared_with);
+                  if (
+                    eco.fusionCenters.length === 0 &&
+                    eco.federalPartners.length === 0 &&
+                    eco.insuranceAndState.length === 0
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <View style={[styles.policyBox, { borderColor: '#6366f155', gap: 8 }]}>
+                      <Text style={[styles.sectionMiniTitle, { color: '#a5b4fc', marginBottom: 0 }]}>
+                        NON-LOCAL INTELLIGENCE &amp; CLEARINGHOUSE REACH
+                      </Text>
+                      {eco.fusionCenters.length > 0 && (
+                        <Text style={styles.policyText}>
+                          🛰️ Fusion / HIDTA Centers ({eco.fusionCenters.length}): {eco.fusionCenters.slice(0, 6).join(' · ')}
+                        </Text>
+                      )}
+                      {eco.federalPartners.length > 0 && (
+                        <Text style={styles.policyText}>
+                          🏛️ Federal Agencies ({eco.federalPartners.length}): {eco.federalPartners.slice(0, 8).join(' · ')}
+                          {eco.federalPartners.length > 8 ? ` (+${eco.federalPartners.length - 8} more)` : ''}
+                        </Text>
+                      )}
+                      {eco.insuranceAndState.length > 0 && (
+                        <Text style={styles.policyText}>
+                          🛡️ Insurance &amp; State Hubs ({eco.insuranceAndState.length}): {eco.insuranceAndState.slice(0, 6).join(' · ')}
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={{ alignSelf: 'flex-start', marginTop: 2 }}
+                        onPress={() => {
+                          setSelectedSlug('');
+                          navigate('/lockdown');
+                        }}
+                      >
+                        <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700' }}>
+                          🛡️ Opt Out of Commercial Data Brokers on /lockdown →
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
 
                 {/* Prohibited Uses */}
                 {!!detail.prohibited_uses && (
