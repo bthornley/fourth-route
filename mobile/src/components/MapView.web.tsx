@@ -592,6 +592,43 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               container.appendChild(cBox);
             }
 
+            // Documented misuse / internal audit violations
+            const incList = Array.isArray(agency.incidents) ? agency.incidents.slice(0, 2) : [];
+            incList.forEach(inc => {
+              const iBox = document.createElement('div');
+              iBox.style.background = '#fef2f2';
+              iBox.style.border = '1px solid #fca5a5';
+              iBox.style.borderRadius = '6px';
+              iBox.style.padding = '5px 8px';
+              iBox.style.marginBottom = '6px';
+              iBox.style.fontSize = '10.5px';
+              iBox.style.color = '#7f1d1d';
+              const tag = document.createElement('div');
+              tag.style.fontWeight = '700';
+              tag.style.fontSize = '10px';
+              tag.textContent = `⚠️ Documented Misuse (${inc.incident_date})`;
+              const txt = document.createElement('div');
+              txt.textContent = inc.headline;
+              iBox.appendChild(tag);
+              iBox.appendChild(txt);
+              container.appendChild(iBox);
+            });
+
+            // Federal grants / contracts (USASpending.gov)
+            const fedList = Array.isArray(agency.federal_awards) ? agency.federal_awards.slice(0, 2) : [];
+            fedList.forEach(aw => {
+              const fBox = document.createElement('div');
+              fBox.style.background = '#ecfdf5';
+              fBox.style.border = '1px solid #a7f3d0';
+              fBox.style.borderRadius = '6px';
+              fBox.style.padding = '5px 8px';
+              fBox.style.marginBottom = '6px';
+              fBox.style.fontSize = '10.5px';
+              fBox.style.color = '#065f46';
+              fBox.textContent = `🏛️ Federal ${aw.award_type}: $${Math.round(aw.amount_usd).toLocaleString()} (${aw.awarding_agency})`;
+              container.appendChild(fBox);
+            });
+
             // Portal link if available
             if (agency.portal_url) {
               const link = document.createElement('a');

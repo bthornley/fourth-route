@@ -51,6 +51,54 @@ function formatCompact(n?: number | null): string {
   return n.toLocaleString();
 }
 
+const STATE_RECORDS_LAWS: Record<string, string> = {
+  CA: 'the California Public Records Act (Cal. Gov. Code § 7920.000 et seq.)',
+  WA: 'the Washington Public Records Act (RCW 42.56)',
+  OR: 'Oregon Public Records Law (ORS 192.311 et seq.)',
+  TX: 'the Texas Public Information Act (Tex. Gov. Code Ch. 552)',
+  IL: 'the Illinois Freedom of Information Act (5 ILCS 140)',
+  FL: 'Florida Public Records Law (Fla. Stat. Ch. 119)',
+  NY: 'the New York Freedom of Information Law (N.Y. Pub. Off. Law §§ 84–90)',
+  CO: 'the Colorado Open Records Act (C.R.S. § 24-72-201 et seq.)',
+  VA: 'the Virginia Freedom of Information Act (Va. Code § 2.2-3700 et seq.)',
+  MI: 'the Michigan Freedom of Information Act (MCL 15.231 et seq.)',
+  OH: 'the Ohio Public Records Act (R.C. § 149.43)',
+  NC: 'the North Carolina Public Records Law (N.C.G.S. § 132-1 et seq.)',
+  GA: 'the Georgia Open Records Act (O.C.G.A. § 50-18-70 et seq.)',
+  AZ: 'Arizona Public Records Law (A.R.S. § 39-121 et seq.)',
+};
+
+function buildFoiaRequestText(detail: AgencyPortalDetail): string {
+  const law = STATE_RECORDS_LAWS[detail.state] || `${detail.state} state public records law`;
+  const bullets: string[] = [
+    `1. All active contracts, purchase orders, invoices, and addenda with Flock Group Inc. (Flock Safety) or any other ALPR vendor, including total annual cost and renewal/termination dates.`,
+    `2. All written ALPR usage, retention (${detail.data_retention ? `currently listed at ${detail.data_retention} days` : 'retention schedule'}), and auto-purge policies currently in force.`,
+    `3. ${(detail.organization_count || 0) > 0 ? `Complete list of all ${detail.organization_count} outside law enforcement agencies or entities granted lookup access to ${detail.agency_name} ALPR data, plus executed inter-agency data-sharing MOUs.` : `All inter-agency data-sharing agreements, hotlist-sharing MOUs, and federal/out-of-state access logs.`}`,
+  ];
+  if (detail.public_search_audit === false) {
+    bullets.push(
+      `4. Electronic ALPR search audit logs (in CSV/XLSX format with personally identifying officer details redacted as required) showing external agency lookups, case/reason codes, and query volume — noting your public transparency portal currently omits public search audits.`
+    );
+  } else {
+    bullets.push(
+      `4. Cumulative 12-month ALPR query audit summary including out-of-state and federal agency search counts.`
+    );
+  }
+
+  return [
+    `To: Public Records Officer / Custodian of Records, ${detail.agency_name}`,
+    `Subject: Public Records Request — Automated License Plate Reader (ALPR) Contracts, Sharing & Audit Logs`,
+    ``,
+    `Pursuant to ${law}, I hereby request electronic copies of the following public records maintained by ${detail.agency_name}:`,
+    ``,
+    ...bullets,
+    ``,
+    `Please provide responsive records electronically in native format (PDF/CSV) to avoid unnecessary copying fees. If any portion is withheld, please cite the specific statutory exemption and release all reasonably segregable non-exempt portions.`,
+    ``,
+    `Thank you for your prompt attention within the statutory response period.`,
+  ].join('\n');
+}
+
 function readUrlParams(): {
   tab: 'portals' | 'civic';
   state: string;
@@ -112,6 +160,7 @@ export function PortalsPage({ navigate }: Props) {
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [partnerFilter, setPartnerFilter] = useState<string>('');
   const [partnerTab, setPartnerTab] = useState<'shared' | 'received'>('shared');
+  const [showFoiaDraft, setShowFoiaDraft] = useState<boolean>(false);
   const [copiedShareKey, setCopiedShareKey] = useState<string | null>(null);
 
   const PAGE_SIZE = 75;
@@ -216,6 +265,7 @@ export function PortalsPage({ navigate }: Props) {
     setDetailLoading(true);
     setPartnerFilter('');
     setPartnerTab('shared');
+    setShowFoiaDraft(false);
     fetchAgencyDetail(selectedSlug).then(d => {
       if (!active) return;
       setDetail(d);
@@ -336,7 +386,7 @@ export function PortalsPage({ navigate }: Props) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.pillRow}
               >
-                {['', 'CA', 'WA', 'OR', 'CO', 'TX', 'IL', 'UT'].map(st => {
+                {['', 'CA', 'WA', 'OR', 'CO', 'TX', 'IL', 'KS', 'MI', 'UT'].map(st => {
                   const active = stateFilter === st;
                   return (
                     <TouchableOpacity
@@ -383,6 +433,18 @@ export function PortalsPage({ navigate }: Props) {
                       {civicFeed.summary.state_laws_count}
                     </Text>
                     <Text style={styles.kpiLabel}>Statewide Statutory Caps</Text>
+                  </View>
+                  <View style={[styles.kpiCard, { borderColor: '#ef444444' }]}>
+                    <Text style={[styles.kpiValue, { color: '#f87171' }]}>
+                      {civicFeed.summary.incidents_count ?? 0}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Documented Misuse Cases</Text>
+                  </View>
+                  <View style={[styles.kpiCard, { borderColor: '#4ade8044' }]}>
+                    <Text style={[styles.kpiValue, { color: '#4ade80' }]}>
+                      {civicFeed.summary.federal_awards_count ?? 0}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Federal Awards (USASpending)</Text>
                   </View>
                 </View>
 
@@ -487,6 +549,81 @@ export function PortalsPage({ navigate }: Props) {
                         </View>
                       );
                     })}
+                  </View>
+                )}
+                {civicFeed.incidents && civicFeed.incidents.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>DOCUMENTED MISUSE &amp; AUDIT VIOLATIONS</Text>
+                    {civicFeed.incidents.map(inc => (
+                      <View key={inc.incident_key} style={[styles.agencyCard, { borderColor: '#ef444444' }]}>
+                        <View style={styles.cardTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.agencyName}>{inc.headline}</Text>
+                            <Text style={styles.agencyLoc}>
+                              {inc.jurisdiction_name} · {inc.state} · {inc.incident_date}
+                            </Text>
+                          </View>
+                          <View style={[styles.auditBadge, styles.alertBadge]}>
+                            <Text style={[styles.auditBadgeText, { color: '#fca5a5' }]}>
+                              {inc.category.replace(/_/g, ' ').toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.policyText}>{inc.summary}</Text>
+                        <View style={styles.civicCardActions}>
+                          {inc.agency_slug && (
+                            <TouchableOpacity
+                              style={styles.civicActionLink}
+                              onPress={() => setSelectedSlug(inc.agency_slug!)}
+                            >
+                              <Text style={styles.civicActionLinkText}>Open Agency Dossier →</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity onPress={() => Linking.openURL(inc.source_url)}>
+                            <Text style={styles.sourceCiteText}>Source: {inc.source_label} ↗</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {civicFeed.federal_awards && civicFeed.federal_awards.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>FEDERAL ALPR CONTRACTS &amp; JAG GRANTS (USASPENDING.GOV)</Text>
+                    {civicFeed.federal_awards.map(aw => (
+                      <View key={aw.award_id} style={styles.agencyCard}>
+                        <View style={styles.cardTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.agencyName}>
+                              {aw.recipient_name} · ${Math.round(aw.amount_usd).toLocaleString()}
+                            </Text>
+                            <Text style={styles.agencyLoc}>
+                              {aw.awarding_agency} {aw.state ? `· ${aw.state}` : ''} {aw.start_date ? `· ${aw.start_date}` : ''}
+                            </Text>
+                          </View>
+                          <View style={[styles.auditBadge, styles.auditBadgeOk]}>
+                            <Text style={[styles.auditBadgeText, { color: '#4ade80' }]}>
+                              FEDERAL {aw.award_type.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.policyText}>{aw.description}</Text>
+                        <View style={styles.civicCardActions}>
+                          {aw.agency_slug && (
+                            <TouchableOpacity
+                              style={styles.civicActionLink}
+                              onPress={() => setSelectedSlug(aw.agency_slug!)}
+                            >
+                              <Text style={styles.civicActionLinkText}>Inspect Portal Dossier →</Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity onPress={() => Linking.openURL(aw.source_url)}>
+                            <Text style={styles.sourceCiteText}>USASpending Award #{aw.award_id} ↗</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 )}
               </>
@@ -850,6 +987,29 @@ export function PortalsPage({ navigate }: Props) {
                     <Text style={styles.modalPrimaryBtnText}>Open Official Flock Portal ↗</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    style={[styles.modalSecondaryBtn, showFoiaDraft && { borderColor: '#4ade80', backgroundColor: '#052e16' }]}
+                    onPress={() => {
+                      setShowFoiaDraft(v => !v);
+                      try {
+                        track('foia_generator_toggled', { slug: detail.slug, state: detail.state });
+                      } catch {}
+                    }}
+                  >
+                    <Text style={[styles.modalSecondaryBtnText, showFoiaDraft && { color: '#4ade80' }]}>
+                      {showFoiaDraft ? '▲ Hide FOIA Draft' : '📝 Generate FOIA Request'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalSecondaryBtn}
+                    onPress={() =>
+                      Linking.openURL(
+                        `https://www.muckrock.com/foi/list/?q=${encodeURIComponent(`${detail.agency_name} Flock`)}`
+                      )
+                    }
+                  >
+                    <Text style={styles.modalSecondaryBtnText}>🔎 Search MuckRock FOIAs ↗</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={styles.modalSecondaryBtn}
                     onPress={() => copyShareUrl(`modal-${detail.slug}`, detail.slug)}
                   >
@@ -858,6 +1018,37 @@ export function PortalsPage({ navigate }: Props) {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
+                {showFoiaDraft && (
+                  <View style={[styles.policyBox, { borderColor: '#4ade8066', gap: 8 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Text style={[styles.sectionMiniTitle, { color: '#4ade80', marginBottom: 0 }]}>
+                        STATE-LAW FOIA / PUBLIC RECORDS REQUEST TEMPLATE ({detail.state})
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.modalPrimaryBtn, { backgroundColor: '#15803d', paddingVertical: 6, paddingHorizontal: 10 }]}
+                        onPress={() => {
+                          try {
+                            const txt = buildFoiaRequestText(detail);
+                            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                              navigator.clipboard.writeText(txt);
+                            }
+                            track('foia_letter_copied', { slug: detail.slug, state: detail.state });
+                            setCopiedShareKey(`foia-${detail.slug}`);
+                            setTimeout(() => setCopiedShareKey(prev => (prev === `foia-${detail.slug}` ? null : prev)), 2200);
+                          } catch {}
+                        }}
+                      >
+                        <Text style={styles.modalPrimaryBtnText}>
+                          {copiedShareKey === `foia-${detail.slug}` ? '✓ FOIA Letter Copied' : '📋 Copy Request Letter'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.policyText, { fontFamily: Platform.OS === 'web' ? 'monospace' : undefined, fontSize: 11.5 }]}>
+                      {buildFoiaRequestText(detail)}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Metrics Grid */}
                 <View style={styles.detailGrid}>
@@ -938,6 +1129,36 @@ export function PortalsPage({ navigate }: Props) {
                       {detail.contract.annual_cost_usd ? ` (~$${detail.contract.annual_cost_usd.toLocaleString()}/yr)` : ''}
                     </Text>
                     <Text style={styles.policyText}>{detail.contract.notes}</Text>
+                  </View>
+                )}
+
+                {detail.incidents && detail.incidents.length > 0 && (
+                  <View style={[styles.policyBox, { borderColor: '#ef444466' }]}>
+                    <Text style={[styles.sectionMiniTitle, { color: '#f87171' }]}>DOCUMENTED MISUSE / AUDIT INCIDENTS</Text>
+                    <View style={{ gap: 8 }}>
+                      {detail.incidents.map(inc => (
+                        <View key={inc.incident_key} style={styles.dossierCivicItem}>
+                          <Text style={styles.dossierCivicTitle}>{inc.headline} ({inc.incident_date})</Text>
+                          <Text style={styles.policyText}>{inc.summary}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {detail.federal_awards && detail.federal_awards.length > 0 && (
+                  <View style={[styles.policyBox, { borderColor: '#4ade8055' }]}>
+                    <Text style={[styles.sectionMiniTitle, { color: '#4ade80' }]}>FEDERAL GRANTS &amp; CONTRACTS (USASPENDING.GOV)</Text>
+                    <View style={{ gap: 8 }}>
+                      {detail.federal_awards.map(aw => (
+                        <View key={aw.award_id} style={styles.dossierCivicItem}>
+                          <Text style={styles.dossierCivicTitle}>
+                            ${Math.round(aw.amount_usd).toLocaleString()} {aw.award_type.toUpperCase()} · {aw.awarding_agency}
+                          </Text>
+                          <Text style={styles.policyText}>{aw.description}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 )}
 

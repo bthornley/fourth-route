@@ -4,6 +4,7 @@ Endpoints: camera listing, bounding box query, user reports, sync status
 """
 
 import os
+import re
 import math
 import time
 import logging
@@ -338,10 +339,27 @@ STATE_FIPS_TO_ABBR = {
 DIRECTION_DEGREES = {"NB": 0, "EB": 90, "SB": 180, "WB": 270}
 
 
-def _fetch_civic_context(cur, agency_slug: str | None, state_abbr: str | None):
-    """Fetch agency-specific enforcement/actions, statewide statutory caps, and municipal contract data."""
+def _clean_place(name: str | None) -> str | None:
+    if not name:
+        return None
+    cleaned = re.sub(r"\s+(city|town|village|borough|cdp|county|parish)$", "", name.strip(), flags=re.IGNORECASE).strip()
+    return cleaned or name.strip()
+
+
+def _fetch_civic_context(
+    cur,
+    agency_slug: str | None,
+    state_abbr: str | None,
+    place_name: str | None = None,
+    county_name: str | None = None,
+):
+    """Fetch enforcement actions, statewide statutory caps, contracts, misuse incidents & federal awards."""
     actions = []
     contract = None
+    incidents = []
+    federal_awards = []
+    city_clean = _clean_place(place_name)
+    county_clean = _clean_place(county_name)
     try:
         if agency_slug or state_abbr:
             cur.execute(
@@ -358,6 +376,7 @@ def _fetch_civic_context(cur, agency_slug: str | None, state_abbr: str | None):
                 (agency_slug, agency_slug, state_abbr, state_abbr),
             )
             actions = cur.fetchall()
+
         if agency_slug:
             cur.execute(
                 """
@@ -371,9 +390,51 @@ def _fetch_civic_context(cur, agency_slug: str | None, state_abbr: str | None):
                 (agency_slug,),
             )
             contract = cur.fetchone()
+
+        if agency_slug or (state_abbr and (city_clean or county_clean)):
+            cur.execute(
+                """
+                SELECT incident_key, agency_slug, city, county, state, jurisdiction_name,
+                       category, incident_date, headline, summary, source_label, source_url
+                FROM agency_incidents
+                WHERE (%s IS NOT NULL AND agency_slug = %s)
+                   OR (
+                        %s IS NOT NULL AND state = %s
+                        AND (
+                            (%s IS NOT NULL AND city IS NOT NULL AND lower(city) = lower(%s))
+                            OR (%s IS NOT NULL AND county IS NOT NULL AND lower(county) = lower(%s))
+                        )
+                   )
+                ORDER BY incident_date DESC
+                LIMIT 4
+                """,
+                (
+                    agency_slug, agency_slug,
+                    state_abbr, state_abbr,
+                    city_clean, city_clean,
+                    county_clean, county_clean,
+                ),
+            )
+            incidents = cur.fetchall()
+
+        if agency_slug or (state_abbr and city_clean):
+            cur.execute(
+                """
+                SELECT award_id, award_type, agency_slug, city, state, awarding_agency,
+                       recipient_name, amount_usd::float AS amount_usd, start_date,
+                       description, source_url
+                FROM federal_alpr_awards
+                WHERE (%s IS NOT NULL AND agency_slug = %s)
+                   OR (%s IS NOT NULL AND state = %s AND %s IS NOT NULL AND city IS NOT NULL AND lower(city) = lower(%s))
+                ORDER BY amount_usd DESC
+                LIMIT 4
+                """,
+                (agency_slug, agency_slug, state_abbr, state_abbr, city_clean, city_clean),
+            )
+            federal_awards = cur.fetchall()
     except Exception as e:
         log.warning(f"Civic context lookup skipped: {e}")
-    return actions, contract
+    return actions, contract, incidents, federal_awards
 
 
 @app.get("/cameras/{camera_id}/agency", tags=["Cameras"])
@@ -381,7 +442,7 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
     """
     Return operating agency and verified transparency portal metadata
     (retention, 30-day search volume, data sharing reach, prohibited uses),
-    plus verified enforcement actions / statutory caps & contract data when available.
+    plus verified enforcement actions, documented misuse incidents, federal awards & contracts.
     Data attribution: Eyes on Flock (CC BY-SA 4.0).
     """
     with db.cursor() as cur:
@@ -424,11 +485,19 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
         if not row:
             raise HTTPException(status_code=404, detail="Camera not found")
         state_abbr = STATE_FIPS_TO_ABBR.get(str(row.get("statefp") or "").zfill(2)) if row.get("statefp") else None
-        actions, contract = _fetch_civic_context(cur, row.get("agency_slug"), state_abbr)
+        actions, contract, incidents, federal_awards = _fetch_civic_context(
+            cur,
+            row.get("agency_slug"),
+            state_abbr,
+            row.get("place_name"),
+            row.get("county_name"),
+        )
     result = dict(row)
     result["state"] = state_abbr
     result["actions"] = actions
     result["contract"] = contract
+    result["incidents"] = incidents
+    result["federal_awards"] = federal_awards
     return result
 
 
@@ -525,16 +594,20 @@ def list_agencies(
 
 @app.get("/agencies/{slug}", tags=["Agencies"])
 def get_agency(slug: str, db=Depends(get_db)):
-    """Get full transparency profile, sharing network, enforcement actions & contracts for a specific agency."""
+    """Get full transparency profile, sharing network, enforcement actions, misuse incidents & federal awards."""
     with db.cursor() as cur:
         cur.execute("SELECT * FROM agency_portals WHERE slug = %s", (slug,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agency portal not found")
-        actions, contract = _fetch_civic_context(cur, row.get("slug"), row.get("state"))
+        actions, contract, incidents, federal_awards = _fetch_civic_context(
+            cur, row.get("slug"), row.get("state"), row.get("city"), row.get("county")
+        )
     result = dict(row)
     result["actions"] = actions
     result["contract"] = contract
+    result["incidents"] = incidents
+    result["federal_awards"] = federal_awards
     return result
 
 
@@ -545,24 +618,31 @@ def get_civic_feed(
     status: str | None = Query(default=None, max_length=32),
     db=Depends(get_db),
 ):
-    """Returns verified legal/enforcement actions, statewide statutory caps, and municipal ALPR contract spend/terminations."""
+    """Returns verified legal actions, state laws, municipal contracts, documented misuse incidents & USASpending awards."""
+    st_upper = state.upper() if state else None
     act_where = "WHERE 1=1"
     act_params = []
-    if state:
+    if st_upper:
         act_where += " AND state = %s"
-        act_params.append(state.upper())
+        act_params.append(st_upper)
     if action_type:
         act_where += " AND action_type = %s"
         act_params.append(action_type)
 
     con_where = "WHERE 1=1"
     con_params = []
-    if state:
+    if st_upper:
         con_where += " AND state = %s"
-        con_params.append(state.upper())
+        con_params.append(st_upper)
     if status:
         con_where += " AND status = %s"
         con_params.append(status)
+
+    geo_where = "WHERE 1=1"
+    geo_params = []
+    if st_upper:
+        geo_where += " AND state = %s"
+        geo_params.append(st_upper)
 
     with db.cursor() as cur:
         cur.execute(
@@ -593,15 +673,44 @@ def get_civic_feed(
         )
         contracts = cur.fetchall()
 
+        cur.execute(
+            f"""
+            SELECT incident_key, agency_slug, city, county, state, jurisdiction_name,
+                   category, incident_date, headline, summary, source_label, source_url
+            FROM agency_incidents
+            {geo_where}
+            ORDER BY incident_date DESC, id DESC
+            """,
+            geo_params,
+        )
+        incidents = cur.fetchall()
+
+        cur.execute(
+            f"""
+            SELECT award_id, award_type, agency_slug, city, state, awarding_agency,
+                   recipient_name, amount_usd::float AS amount_usd, start_date,
+                   description, source_url
+            FROM federal_alpr_awards
+            {geo_where}
+            ORDER BY amount_usd DESC, start_date DESC NULLS LAST
+            """,
+            geo_params,
+        )
+        federal_awards = cur.fetchall()
+
     return {
         "summary": {
             "total_actions": len(actions),
             "contracts_tracked": len(contracts),
             "terminated_or_switched": sum(1 for c in contracts if c.get("status") in ("terminated", "switched", "expired")),
             "state_laws_count": sum(1 for a in actions if a.get("action_type") == "statute_cap"),
+            "incidents_count": len(incidents),
+            "federal_awards_count": len(federal_awards),
         },
         "actions": actions,
         "contracts": contracts,
+        "incidents": incidents,
+        "federal_awards": federal_awards,
     }
 
 

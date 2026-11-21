@@ -31,6 +31,12 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: python etl/fetch_cameras.py --region ${{ github.event.inputs.region || 'all' }}
 
+      - name: Sync USASpending.gov ALPR contracts & federal grants
+        if: success()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: python etl/sync_usaspending.py
+
       - name: Refresh accountability views & check portal snapshot freshness
         if: success()
         env:

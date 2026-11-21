@@ -280,3 +280,152 @@ ON CONFLICT (contract_key) DO UPDATE SET
     notes = EXCLUDED.notes,
     source_label = EXCLUDED.source_label,
     source_url = EXCLUDED.source_url;
+
+-- 4) Documented Misuse & Audit Violations Ledger (cited primary reporting & court records)
+CREATE TABLE IF NOT EXISTS agency_incidents (
+    id                SERIAL PRIMARY KEY,
+    incident_key      TEXT UNIQUE NOT NULL,
+    agency_slug       TEXT,
+    city              TEXT,
+    county            TEXT,
+    state             CHAR(2) NOT NULL,
+    jurisdiction_name TEXT NOT NULL,
+    category          TEXT NOT NULL, -- 'personal_stalking' | 'immigration_sharing' | 'abortion_care_lookup' | 'internal_audit_abuse'
+    incident_date     DATE NOT NULL,
+    headline          TEXT NOT NULL,
+    summary           TEXT NOT NULL,
+    source_label      TEXT NOT NULL,
+    source_url        TEXT NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agency_incidents_slug ON agency_incidents (agency_slug);
+CREATE INDEX IF NOT EXISTS idx_agency_incidents_geo ON agency_incidents (state, lower(city), lower(county));
+
+ALTER TABLE agency_incidents ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE agency_incidents FROM anon, authenticated, PUBLIC;
+
+INSERT INTO agency_incidents (
+    incident_key, agency_slug, city, county, state, jurisdiction_name, category, incident_date,
+    headline, summary, source_label, source_url
+) VALUES
+(
+    'san-diego-ca-ia-dv-misuse-2026',
+    'san-diego-ca-pd',
+    'San Diego',
+    'San Diego',
+    'CA',
+    'San Diego Police Department',
+    'internal_audit_abuse',
+    '2026-11-01',
+    'SDPD Used ALPR Cameras in Internal Affairs & Domestic-Violence Victim Lookups',
+    'Disclosures that SDPD queried Flock Safety cameras during an internal affairs probe involving a fellow officer and a domestic violence victim triggered councilmembers to flip and vote 7–0 to terminate the ALPR program.',
+    'KPBS / Law Commentary',
+    'https://www.kpbs.org/'
+),
+(
+    'kechi-ks-officer-stalking-plea',
+    NULL,
+    'Kechi',
+    'Sedgwick',
+    'KS',
+    'Kechi Police Department',
+    'personal_stalking',
+    '2023-09-01',
+    'Police Lieutenant Pleads Guilty to Stalking Estranged Wife Using Flock Cameras',
+    'Former Kechi Police Lt. Victor Heiar pleaded guilty to computer crime and stalking charges after misusing Flock license plate reader searches to monitor his estranged wife.',
+    'AP / Kansas Reporting',
+    'https://apnews.com/'
+),
+(
+    'johnson-county-tx-abortion-lookup-2025',
+    NULL,
+    NULL,
+    'Johnson',
+    'TX',
+    'Johnson County Sheriff''s Office',
+    'abortion_care_lookup',
+    '2025-05-29',
+    'Texas Deputy Searched 83,000+ Cameras Nationwide in Abortion Investigation',
+    'Audit logs obtained via public records showed a Johnson County Sheriff''s deputy searched Flock''s nationwide network—spanning states where abortion is legal—using explicit abortion investigation search notes.',
+    '404 Media / Associated Press',
+    'https://www.404media.co/'
+),
+(
+    'mount-prospect-il-immigration-2025',
+    NULL,
+    'Mount Prospect',
+    'Cook',
+    'IL',
+    'Mount Prospect Police Department',
+    'immigration_sharing',
+    '2025-08-20',
+    'Audit Reveals Hundreds of Immigration Queries & Texas Access to Suburban Chicago Cams',
+    'Public records audits showed Mount Prospect PD cameras were accessed during Texas''s cross-state abortion search and hundreds of queries carried immigration/ICE labels, prompting Illinois Secretary of State intervention.',
+    'AP / 404 Media',
+    'https://www.404media.co/'
+),
+(
+    'danville-il-ice-search-logs-2025',
+    NULL,
+    'Danville',
+    'Vermilion',
+    'IL',
+    'Danville Police Department',
+    'immigration_sharing',
+    '2025-05-28',
+    'FOIA Audit Logs Showed Thousands of "Immigration" / "ICE" ALPR Lookups',
+    'Audit logs released via public records requests in Danville, Illinois documented widespread informal "ICE" and "immigration" search reasons despite Illinois state statutory limits.',
+    '404 Media / EFF',
+    'https://www.404media.co/'
+),
+(
+    'loveland-co-border-patrol-access-2025',
+    NULL,
+    'Loveland',
+    'Larimer',
+    'CO',
+    'Loveland Police Department',
+    'immigration_sharing',
+    '2025-06-01',
+    'Municipal Inquiry After Federal Border Patrol Pilot Accessed Local Flock Network',
+    'Loveland PD faced formal local scrutiny after records showed U.S. Border Patrol gained federal pilot lookup access to the city''s ALPR camera network without public municipal authorization.',
+    '9NEWS / Colorado Reporting',
+    'https://www.9news.com/'
+)
+ON CONFLICT (incident_key) DO UPDATE SET
+    agency_slug = EXCLUDED.agency_slug,
+    city = EXCLUDED.city,
+    county = EXCLUDED.county,
+    state = EXCLUDED.state,
+    jurisdiction_name = EXCLUDED.jurisdiction_name,
+    category = EXCLUDED.category,
+    incident_date = EXCLUDED.incident_date,
+    headline = EXCLUDED.headline,
+    summary = EXCLUDED.summary,
+    source_label = EXCLUDED.source_label,
+    source_url = EXCLUDED.source_url;
+
+-- 5) Automated Federal ALPR Contracts & Grants (synced from api.usaspending.gov)
+CREATE TABLE IF NOT EXISTS federal_alpr_awards (
+    id                    SERIAL PRIMARY KEY,
+    award_id              TEXT UNIQUE NOT NULL,
+    award_type            TEXT NOT NULL, -- 'contract' | 'grant'
+    generated_internal_id TEXT,
+    agency_slug           TEXT,
+    city                  TEXT,
+    state                 CHAR(2),
+    awarding_agency       TEXT NOT NULL,
+    recipient_name        TEXT NOT NULL,
+    amount_usd            NUMERIC(14, 2) NOT NULL,
+    start_date            DATE,
+    description           TEXT NOT NULL,
+    source_url            TEXT NOT NULL,
+    synced_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_federal_awards_slug ON federal_alpr_awards (agency_slug);
+CREATE INDEX IF NOT EXISTS idx_federal_awards_geo ON federal_alpr_awards (state, lower(city));
+
+ALTER TABLE federal_alpr_awards ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE federal_alpr_awards FROM anon, authenticated, PUBLIC;
