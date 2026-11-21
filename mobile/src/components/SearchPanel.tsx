@@ -464,15 +464,10 @@ export function SearchPanel({
     );
   };
 
-  const chipsToRender = useMemo(() => {
-    if (FEATURED_STATES.includes(selectedState)) return FEATURED_STATES;
-    return ['all', selectedState, ...FEATURED_STATES.filter(s => s !== 'all')];
-  }, [selectedState]);
-
   const filteredStates = useMemo(() => {
     const q = stateSearchQuery.trim().toLowerCase();
     const allKeys = (Object.keys(STATE_CONFIG) as StateKey[]).filter(k => k !== 'all');
-    const sorted = [...allKeys].sort((a, b) => STATE_CONFIG[a].name.localeCompare(STATE_CONFIG[b].name));
+    const sorted: StateKey[] = ['all', ...[...allKeys].sort((a, b) => STATE_CONFIG[a].name.localeCompare(STATE_CONFIG[b].name))];
     if (!q) return sorted;
     return sorted.filter(k => {
       const cfg = STATE_CONFIG[k];
@@ -590,53 +585,29 @@ export function SearchPanel({
         <TouchableOpacity onPress={onAbout} activeOpacity={0.7} style={styles.headerTitleWrap}>
           <Text style={styles.title}>⚖️ Fourth Route</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.browseMapBtn}
-          onPress={() => {
-            setCollapsed(true);
-            try { track('browse_map_collapsed'); } catch {}
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.browseMapBtnText}>🗺️ Browse Map ▼</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.tagline}>Navigate within your 4th Amendment rights</Text>
-
-      {/* State selector chips — single clean horizontal scroll row for mobile */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.stateScrollContent}
-        style={styles.stateScrollView}
-      >
-        {chipsToRender.map(s => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <TouchableOpacity
-            key={s}
-            style={[styles.stateChip, selectedState === s && styles.stateChipActive]}
+            style={[styles.stateChip, styles.moreStatesChip, showStateDropdown && styles.moreStatesChipActive]}
+            onPress={() => setShowStateDropdown(prev => !prev)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.stateChipText, (showStateDropdown || selectedState !== 'all') && styles.stateChipTextActive]}>
+              {STATE_CONFIG[selectedState]?.flag} {selectedState === 'all' ? 'All States' : STATE_CONFIG[selectedState]?.label} {showStateDropdown ? '▴' : '▾'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.browseMapBtn}
             onPress={() => {
-              setShowStateDropdown(false);
-              handleStateSelect(s);
+              setCollapsed(true);
+              try { track('browse_map_collapsed'); } catch {}
             }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.stateChipText, selectedState === s && styles.stateChipTextActive]}>
-              {STATE_CONFIG[s]?.flag} {STATE_CONFIG[s]?.label}
-            </Text>
+            <Text style={styles.browseMapBtnText}>🗺️ Map ▼</Text>
           </TouchableOpacity>
-        ))}
-
-        {/* More States Button */}
-        <TouchableOpacity
-          style={[styles.stateChip, styles.moreStatesChip, showStateDropdown && styles.moreStatesChipActive]}
-          onPress={() => setShowStateDropdown(prev => !prev)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.stateChipText, showStateDropdown && styles.stateChipTextActive]}>
-            🗺️ More States {showStateDropdown ? '▴' : '▾'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+        </View>
+      </View>
+      <Text style={styles.tagline}>Navigate within your 4th Amendment rights</Text>
 
       {/* 50-State Searchable Dropdown */}
       {showStateDropdown && (

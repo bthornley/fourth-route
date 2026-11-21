@@ -99,6 +99,48 @@ function buildFoiaRequestText(detail: AgencyPortalDetail): string {
   ].join('\n');
 }
 
+const CIVIC_STATES = ['CA', 'WA', 'OR', 'CO', 'TX', 'IL', 'KS', 'MI', 'FL', 'NY', 'OH', 'UT', 'VA'];
+
+function StateDropdown({
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  options: { value: string; label: string }[];
+  allLabel: string;
+}) {
+  if (Platform.OS === 'web') {
+    return React.createElement(
+      'select',
+      {
+        value,
+        onChange: (e: any) => onChange(e.target.value),
+        'aria-label': 'Filter by state',
+        style: {
+          backgroundColor: '#0b0b1a',
+          border: '1px solid #2e2e57',
+          borderRadius: 8,
+          padding: '8px 10px',
+          color: '#f8fafc',
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: 'pointer',
+          minWidth: 150,
+          outline: 'none',
+        },
+      },
+      React.createElement('option', { value: '' }, allLabel),
+      options.map(opt =>
+        React.createElement('option', { key: opt.value, value: opt.value }, opt.label)
+      )
+    );
+  }
+  return null;
+}
+
 function readUrlParams(): {
   tab: 'portals' | 'civic';
   state: string;
@@ -378,29 +420,17 @@ export function PortalsPage({ navigate }: Props) {
 
         {activeTab === 'civic' ? (
           <View style={{ gap: 14 }}>
-            {/* State Quick Filters for Civic Feed */}
+            {/* State Dropdown Filter for Civic Feed */}
             <View style={styles.controlsCard}>
-              <Text style={styles.controlLabel}>FILTER BY JURISDICTION</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.pillRow}
-              >
-                {['', 'CA', 'WA', 'OR', 'CO', 'TX', 'IL', 'KS', 'MI', 'UT'].map(st => {
-                  const active = stateFilter === st;
-                  return (
-                    <TouchableOpacity
-                      key={st || 'ALL'}
-                      style={[styles.filterPill, active && styles.filterPillActive]}
-                      onPress={() => setStateFilter(st)}
-                    >
-                      <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                        {st || 'All Tracked States'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <Text style={[styles.controlLabel, { marginTop: 0 }]}>JURISDICTION FILTER</Text>
+                <StateDropdown
+                  value={stateFilter}
+                  onChange={setStateFilter}
+                  allLabel="All Tracked States"
+                  options={CIVIC_STATES.map(st => ({ value: st, label: st }))}
+                />
+              </View>
             </View>
 
             {civicLoading ? (
@@ -775,6 +805,17 @@ export function PortalsPage({ navigate }: Props) {
                 <Text style={styles.clearBtnText}>✕</Text>
               </TouchableOpacity>
             )}
+            {statesList.length > 0 && (
+              <StateDropdown
+                value={stateFilter}
+                onChange={setStateFilter}
+                allLabel={`All States (${statesList.length})`}
+                options={statesList.map(st => ({
+                  value: st.state,
+                  label: `${st.state} (${st.count})`,
+                }))}
+              />
+            )}
             <TouchableOpacity
               style={styles.shareFilterBtn}
               onPress={() => copyShareUrl('toolbar')}
@@ -784,38 +825,6 @@ export function PortalsPage({ navigate }: Props) {
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* State Pills */}
-          {statesList.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pillRow}
-            >
-              <TouchableOpacity
-                style={[styles.filterPill, !stateFilter && styles.filterPillActive]}
-                onPress={() => setStateFilter('')}
-              >
-                <Text style={[styles.filterPillText, !stateFilter && styles.filterPillTextActive]}>
-                  All States
-                </Text>
-              </TouchableOpacity>
-              {statesList.map(st => {
-                const active = stateFilter === st.state;
-                return (
-                  <TouchableOpacity
-                    key={st.state}
-                    style={[styles.filterPill, active && styles.filterPillActive]}
-                    onPress={() => setStateFilter(active ? '' : st.state)}
-                  >
-                    <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                      {st.state} ({st.count})
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
 
           {/* Sort Leaderboard Tabs */}
           <Text style={styles.controlLabel}>RANK LEADERBOARD BY</Text>
