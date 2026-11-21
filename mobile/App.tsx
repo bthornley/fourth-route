@@ -73,6 +73,7 @@ export default function App() {
   const [reportModal, setReportModal] = useState<{ lat: number; lon: number } | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; zoom: number } | undefined>(undefined);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   const handleStateChange = useCallback((s: StateKey) => {
     setFlyTo({ ...STATE_CONFIG[s].center });
@@ -132,6 +133,7 @@ export default function App() {
             cameras={cameras}
             onMapLongPress={handleMapLongPress}
             flyTo={flyTo}
+            userLocation={userLocation}
           />
           {syncStatus && (
             <View style={styles.syncBadge} pointerEvents="none">
@@ -172,8 +174,12 @@ export default function App() {
             <RouteInfoSheet
               result={result}
               vehicle={vehicle}
-              onClear={clearRoute}
+              onClear={() => {
+                setUserLocation(null);
+                clearRoute();
+              }}
               onOpenLockdown={() => navigate('/lockdown')}
+              onUserLocationChange={setUserLocation}
             />
           )}
 

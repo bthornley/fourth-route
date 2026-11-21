@@ -10,6 +10,7 @@ interface Props {
   cameras: (Camera | CameraLocation)[];
   onMapLongPress?: (lat: number, lon: number) => void;
   flyTo?: { lng: number; lat: number; zoom: number };
+  userLocation?: { lat: number; lon: number } | null;
 }
 
 const DEFAULT_CENTER: [number, number] = [-97.0, 38.5];
@@ -19,7 +20,7 @@ const DETAIL_ZOOM_THRESHOLD = 7.5;
 // Lighter map style — easier to read, cameras pop more
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
-export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, flyTo }: Props) {
+export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, flyTo, userLocation }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const hasTrackedBrowse = useRef(false);
@@ -181,15 +182,24 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
         },
       });
 
-      // Load nationwide 50-state overview clusters once
+      let overviewActive = true;
+
+      // Load nationwide 50-state overview clusters once; fall back cleanly to bbox if /overview isn't deployed yet
       fetchCameraOverview().then((clusters) => {
         const src = m.getSource('cameras-overview') as maplibregl.GeoJSONSource;
         if (src && clusters.length > 0) {
           src.setData(overviewToGeoJSON(clusters));
+        } else {
+          overviewActive = false;
+          try {
+            m.setLayerZoomRange('cameras-halo', 0, 24);
+            m.setLayerZoomRange('cameras-dot', 0, 24);
+          } catch {}
+          loadViewportCameras();
         }
       });
 
-      // Dynamic individual camera loading by bounding box (only when zoomed past DETAIL_ZOOM_THRESHOLD)
+      // Dynamic individual camera loading by bounding box (only when zoomed past DETAIL_ZOOM_THRESHOLD unless overview unavailable)
       const fetchCamerasBbox = (bbox: { min_lon: number; min_lat: number; max_lon: number; max_lat: number }) =>
         fetch(`${API_BASE}/cameras/bbox`, {
           method: 'POST',
@@ -205,7 +215,7 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
 
       // Helper to fetch current viewport cameras with a 20% spatial padding buffer
       const loadViewportCameras = () => {
-        if (m.getZoom() < DETAIL_ZOOM_THRESHOLD - 0.3) return;
+        if (overviewActive && m.getZoom() < DETAIL_ZOOM_THRESHOLD - 0.3) return;
         const b = m.getBounds();
         const spanLon = b.getEast() - b.getWest();
         const spanLat = b.getNorth() - b.getSouth();
@@ -216,6 +226,26 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
           max_lat: Math.min(b.getNorth() + spanLat * 0.2, 90),
         });
       };
+
+      // Foreground Copilot user location dot
+      m.addSource('user-location', { type: 'geojson', data: emptyPoints() });
+      m.addLayer({
+        id: 'user-location-halo',
+        type: 'circle',
+        source: 'user-location',
+        paint: { 'circle-radius': 16, 'circle-color': '#3b82f6', 'circle-opacity': 0.22 },
+      });
+      m.addLayer({
+        id: 'user-location-dot',
+        type: 'circle',
+        source: 'user-location',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#2563eb',
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
 
       // Load detail cameras immediately if initial zoom starts zoomed in
       loadViewportCameras();
@@ -477,6 +507,32 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
     if (m.isStyleLoaded()) update();
     else m.once('load', update);
   }, [cameras]);
+
+  // ── Update live user GPS dot when foreground Copilot is active ──────────────
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+
+    const update = () => {
+      const src = m.getSource('user-location') as maplibregl.GeoJSONSource;
+      if (!src) return;
+      if (userLocation) {
+        src.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [userLocation.lon, userLocation.lat] },
+            properties: {},
+          }],
+        });
+      } else {
+        src.setData(emptyPoints());
+      }
+    };
+
+    if (m.isStyleLoaded()) update();
+    else m.once('load', update);
+  }, [userLocation]);
 
   return (
     <div

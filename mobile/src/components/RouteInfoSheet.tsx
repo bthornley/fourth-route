@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { track } from '@vercel/analytics';
 import { CompareResult, Maneuver, decodePolyline } from '../services/api';
@@ -6,6 +6,13 @@ import {
   VehicleType, VEHICLE_PROFILES,
   calcFuelSavings, annualiseSavings,
 } from '../services/fuel';
+import {
+  unlockCopilotAudio,
+  triggerCameraAlert,
+  acquireScreenWakeLock,
+  haversineMeters,
+  WakeLockController,
+} from '../services/copilot';
 import { PARTNERS, PARTNER_PROMO_CODE, KOFI_URL } from '../config/partners';
 
 interface Props {
@@ -13,6 +20,7 @@ interface Props {
   vehicle: VehicleType;
   onClear?: () => void;
   onOpenLockdown?: () => void;
+  onUserLocationChange?: (loc: { lat: number; lon: number } | null) => void;
 }
 
 function fmtTime(seconds: number): string {
@@ -76,11 +84,91 @@ const VERDICT_CONFIG = {
   impossible:      { emoji: '⚠️', label: 'No privacy route',        sub: 'We couldn\u2019t calculate an alternate route for this trip.', color: '#E74C3C' },
 };
 
-export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Props) {
+export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown, onUserLocationChange }: Props) {
   const { privacy_route: pr, standard_route: sr, overhead: oh, cameras_in_corridor } = result;
   const [expanded, setExpanded] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copilotActive, setCopilotActive] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [nearestMeters, setNearestMeters] = useState<number | null>(null);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+
+  const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<WakeLockController | null>(null);
+  const alertedKeysRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!copilotActive) {
+      if (watchIdRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+      setNearestMeters(null);
+      onUserLocationChange?.(null);
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setCopilotError('Browser geolocation is unavailable on this device.');
+      setCopilotActive(false);
+      return;
+    }
+
+    setCopilotError(null);
+    acquireScreenWakeLock().then(wl => { wakeLockRef.current = wl; });
+
+    const onVisChange = () => {
+      if (document.visibilityState === 'visible' && copilotActive && !wakeLockRef.current) {
+        acquireScreenWakeLock().then(wl => { wakeLockRef.current = wl; });
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisChange);
+    }
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        onUserLocationChange?.({ lat, lon });
+
+        const areaCams = result.camera_locations ?? [];
+        let minD = Infinity;
+        for (const cam of areaCams) {
+          const d = haversineMeters(lat, lon, cam.lat, cam.lon);
+          if (d < minD) minD = d;
+          const key = `${cam.lat.toFixed(5)},${cam.lon.toFixed(5)}`;
+          if (d <= 250 && !alertedKeysRef.current.has(key)) {
+            alertedKeysRef.current.add(key);
+            triggerCameraAlert(d, voiceEnabled);
+          } else if (d > 750 && alertedKeysRef.current.has(key)) {
+            alertedKeysRef.current.delete(key);
+          }
+        }
+        setNearestMeters(minD < Infinity ? minD : null);
+      },
+      (err) => {
+        setCopilotError(err.message || 'Location permission required for live chimes.');
+        setCopilotActive(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+
+    return () => {
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisChange);
+      }
+    };
+  }, [copilotActive, voiceEnabled, result.camera_locations]);
 
   const maneuvers: Maneuver[] = pr?.route?.trip?.legs?.[0]?.maneuvers ?? [];
   const shapeEncoded: string = pr?.route?.trip?.legs?.[0]?.shape ?? '';
@@ -384,6 +472,64 @@ export function RouteInfoSheet({ result, vehicle, onClear, onOpenLockdown }: Pro
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Foreground Dash Copilot (Live GPS Camera Chimes + Stay Awake, 100% On-Device) */}
+        <View style={styles.copilotBox}>
+          <View style={styles.copilotHeaderRow}>
+            <TouchableOpacity
+              style={[styles.copilotToggleBtn, copilotActive && styles.copilotToggleBtnActive]}
+              onPress={() => {
+                if (!copilotActive) {
+                  unlockCopilotAudio();
+                  alertedKeysRef.current.clear();
+                  setCopilotActive(true);
+                  try { track('copilot_started'); } catch {}
+                } else {
+                  setCopilotActive(false);
+                }
+              }}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.copilotToggleText, copilotActive && { color: '#4ade80' }]}>
+                {copilotActive ? '🔊 Dash Copilot Active (Tap to Stop)' : '🔔 Start Dash Copilot · Camera Chimes'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.copilotMiniBtn, voiceEnabled && styles.copilotMiniBtnActive]}
+              onPress={() => setVoiceEnabled(v => !v)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.copilotMiniBtnText}>
+                {voiceEnabled ? '🗣️ Voice' : '🔕 Chime'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.copilotMiniBtn}
+              onPress={() => {
+                unlockCopilotAudio();
+                triggerCameraAlert(150, voiceEnabled);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.copilotMiniBtnText}>🔔 Test</Text>
+            </TouchableOpacity>
+          </View>
+          {copilotActive && (
+            <Text style={styles.copilotStatusText}>
+              {nearestMeters !== null
+                ? nearestMeters <= 250
+                  ? `⚠️ ALPR camera within ${Math.round(nearestMeters * 3.28084)} ft!`
+                  : `🛡️ Scanning corridor (${(nearestMeters / 1609.34).toFixed(2)} mi to nearest camera) · Keep screen open`
+                : '🛰️ Waiting for GPS fix… (100% on-device, zero server logging)'}
+            </Text>
+          )}
+          {!copilotActive && (
+            <Text style={styles.copilotSubText}>
+              Plays chimes & keeps screen awake while Fourth Route stays open on your dash (GPS never leaves your phone).
+            </Text>
+          )}
+          {copilotError && <Text style={styles.copilotErrText}>⚠️ {copilotError}</Text>}
+        </View>
 
         {/* Turn-by-turn list */}
         {showDirections && maneuvers.length > 0 && (
@@ -798,6 +944,70 @@ const styles = StyleSheet.create({
   kofiPillText: {
     color: '#E8C97A',
     fontSize: 11,
+    fontWeight: '600',
+  },
+  copilotBox: {
+    marginTop: 8,
+    padding: 9,
+    borderRadius: 10,
+    backgroundColor: '#121226',
+    borderWidth: 1,
+    borderColor: '#2d2d55',
+    gap: 5,
+  },
+  copilotHeaderRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  copilotToggleBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#1a1a36',
+    borderWidth: 1,
+    borderColor: '#3b82f666',
+    alignItems: 'center',
+  },
+  copilotToggleBtnActive: {
+    backgroundColor: '#0f2922',
+    borderColor: '#4ade80',
+  },
+  copilotToggleText: {
+    color: '#93c5fd',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  copilotMiniBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#171733',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  copilotMiniBtnActive: {
+    borderColor: '#4ade8088',
+  },
+  copilotMiniBtnText: {
+    color: '#cbd5e1',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  copilotStatusText: {
+    color: '#4ade80',
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  copilotSubText: {
+    color: '#94a3b8',
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  copilotErrText: {
+    color: '#f87171',
+    fontSize: 10.5,
     fontWeight: '600',
   },
 });
