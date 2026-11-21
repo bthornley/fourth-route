@@ -538,6 +538,60 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               container.appendChild(detailsPanel);
             }
 
+            // Verified enforcement actions / statewide statutory caps
+            const civicActions = Array.isArray(agency.actions) ? agency.actions.slice(0, 2) : [];
+            if (civicActions.length > 0) {
+              civicActions.forEach(act => {
+                const box = document.createElement('div');
+                const isStatute = act.action_type === 'statute_cap';
+                box.style.background = isStatute ? '#eff6ff' : '#fef2f2';
+                box.style.border = `1px solid ${isStatute ? '#bfdbfe' : '#fecaca'}`;
+                box.style.borderRadius = '6px';
+                box.style.padding = '6px 8px';
+                box.style.marginBottom = '6px';
+                box.style.fontSize = '10.5px';
+                box.style.lineHeight = '1.35';
+                box.style.color = isStatute ? '#1e3a8a' : '#7f1d1d';
+
+                const tagEl = document.createElement('div');
+                tagEl.style.fontWeight = '700';
+                tagEl.style.fontSize = '10px';
+                tagEl.style.marginBottom = '2px';
+                tagEl.textContent = isStatute
+                  ? `⚖️ ${act.statute_or_vote || 'State ALPR Law'}${act.retention_cap_days ? ` · ${act.retention_cap_days}d Max Cap` : ''}`
+                  : `🚨 ${act.statute_or_vote || 'Civic Action'} (${act.action_date})`;
+
+                const headEl = document.createElement('div');
+                headEl.textContent = act.headline;
+
+                box.appendChild(tagEl);
+                box.appendChild(headEl);
+                container.appendChild(box);
+              });
+            }
+
+            // Verified municipal contract status & spend
+            if (agency.contract) {
+              const c = agency.contract;
+              const cBox = document.createElement('div');
+              const isStopped = c.status === 'terminated' || c.status === 'switched' || c.status === 'expired';
+              cBox.style.background = isStopped ? '#fffbeb' : '#f1f5f9';
+              cBox.style.border = `1px solid ${isStopped ? '#fde68a' : '#cbd5e1'}`;
+              cBox.style.borderRadius = '6px';
+              cBox.style.padding = '5px 8px';
+              cBox.style.marginBottom = '6px';
+              cBox.style.fontSize = '10.5px';
+              cBox.style.color = '#334155';
+
+              const costStr = c.contract_value_usd
+                ? ` · $${c.contract_value_usd.toLocaleString()}`
+                : c.annual_cost_usd
+                  ? ` · ~$${c.annual_cost_usd.toLocaleString()}/yr`
+                  : '';
+              cBox.textContent = `📄 Contract (${c.status.toUpperCase()}): ${c.vendor}${costStr}`;
+              container.appendChild(cBox);
+            }
+
             // Portal link if available
             if (agency.portal_url) {
               const link = document.createElement('a');

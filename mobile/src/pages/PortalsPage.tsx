@@ -15,12 +15,14 @@ import { track } from '@vercel/analytics';
 import {
   fetchAgencies,
   fetchAgencyDetail,
+  fetchCivicFeed,
   AgencyPortalSummaryItem,
   AgencyPortalDetail,
   AgencyDirectorySummary,
   AgencyStateCount,
   AgencySortKey,
   AgencyAuditFilter,
+  CivicFeedResponse,
 } from '../services/api';
 
 interface Props {
@@ -50,6 +52,7 @@ function formatCompact(n?: number | null): string {
 }
 
 function readUrlParams(): {
+  tab: 'portals' | 'civic';
   state: string;
   q: string;
   sort: AgencySortKey;
@@ -57,7 +60,7 @@ function readUrlParams(): {
   agency: string;
 } {
   if (typeof window === 'undefined') {
-    return { state: '', q: '', sort: 'retention', audit: 'all', agency: '' };
+    return { tab: 'portals', state: '', q: '', sort: 'retention', audit: 'all', agency: '' };
   }
   const sp = new URLSearchParams(window.location.search);
   const validSorts: AgencySortKey[] = [
@@ -73,6 +76,7 @@ function readUrlParams(): {
   const rawSort = (sp.get('sort') || 'retention') as AgencySortKey;
   const rawAudit = (sp.get('audit') || 'all') as AgencyAuditFilter;
   return {
+    tab: sp.get('tab') === 'civic' ? 'civic' : 'portals',
     state: (sp.get('state') || '').toUpperCase().slice(0, 2),
     q: sp.get('q') || '',
     sort: validSorts.includes(rawSort) ? rawSort : 'retention',
@@ -84,6 +88,7 @@ function readUrlParams(): {
 export function PortalsPage({ navigate }: Props) {
   const initial = useMemo(() => readUrlParams(), []);
 
+  const [activeTab, setActiveTab] = useState<'portals' | 'civic'>(initial.tab);
   const [stateFilter, setStateFilter] = useState<string>(initial.state);
   const [searchText, setSearchText] = useState<string>(initial.q);
   const [debouncedQuery, setDebouncedQuery] = useState<string>(initial.q);
@@ -97,6 +102,10 @@ export function PortalsPage({ navigate }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [civicFeed, setCivicFeed] = useState<CivicFeedResponse | null>(null);
+  const [civicLoading, setCivicLoading] = useState<boolean>(false);
+  const [civicError, setCivicError] = useState<string | null>(null);
 
   const [selectedSlug, setSelectedSlug] = useState<string>(initial.agency);
   const [detail, setDetail] = useState<AgencyPortalDetail | null>(null);
@@ -117,6 +126,7 @@ export function PortalsPage({ navigate }: Props) {
   useEffect(() => {
     if (typeof window === 'undefined' || window.location.pathname !== '/portals') return;
     const sp = new URLSearchParams();
+    if (activeTab === 'civic') sp.set('tab', 'civic');
     if (stateFilter) sp.set('state', stateFilter);
     if (debouncedQuery) sp.set('q', debouncedQuery);
     if (sortBy !== 'retention') sp.set('sort', sortBy);
@@ -125,7 +135,27 @@ export function PortalsPage({ navigate }: Props) {
     const qs = sp.toString();
     const nextUrl = qs ? `/portals?${qs}` : '/portals';
     window.history.replaceState(null, '', nextUrl);
-  }, [stateFilter, debouncedQuery, sortBy, auditFilter, selectedSlug]);
+  }, [activeTab, stateFilter, debouncedQuery, sortBy, auditFilter, selectedSlug]);
+
+  // Load civic legal actions & contract feed when Civic tab is open
+  const loadCivic = useCallback(async () => {
+    setCivicLoading(true);
+    setCivicError(null);
+    try {
+      const res = await fetchCivicFeed({ state: stateFilter || undefined });
+      setCivicFeed(res);
+    } catch (e: any) {
+      setCivicError(e?.message || 'Unable to load civic enforcement & contract records.');
+    } finally {
+      setCivicLoading(false);
+    }
+  }, [stateFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'civic') {
+      loadCivic();
+    }
+  }, [activeTab, loadCivic]);
 
   // Fetch initial/filtered directory
   const loadDirectory = useCallback(async () => {
@@ -267,10 +297,203 @@ export function PortalsPage({ navigate }: Props) {
           <Text style={styles.heroTitle}>Search Police &amp; Sheriff Transparency Portals</Text>
           <Text style={styles.heroSub}>
             Audit retention periods, 30-day capture volumes, external law enforcement sharing networks,
-            and whether your city publishes public search logs.
+            verified lawsuits, council terminations, and municipal contract spend.
           </Text>
         </View>
 
+        {/* Hub Mode Switcher */}
+        <View style={styles.modeTabRow}>
+          <TouchableOpacity
+            style={[styles.modeTabBtn, activeTab === 'portals' && styles.modeTabBtnActive]}
+            onPress={() => setActiveTab('portals')}
+          >
+            <Text style={[styles.modeTabText, activeTab === 'portals' && styles.modeTabTextActive]}>
+              🔍 Transparency Portals
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeTabBtn, activeTab === 'civic' && styles.modeTabBtnActive]}
+            onPress={() => {
+              setActiveTab('civic');
+              try {
+                track('civic_feed_opened');
+              } catch {}
+            }}
+          >
+            <Text style={[styles.modeTabText, activeTab === 'civic' && styles.modeTabTextActive]}>
+              ⚖️ Legal Actions &amp; Contracts
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeTab === 'civic' ? (
+          <View style={{ gap: 14 }}>
+            {/* State Quick Filters for Civic Feed */}
+            <View style={styles.controlsCard}>
+              <Text style={styles.controlLabel}>FILTER BY JURISDICTION</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pillRow}
+              >
+                {['', 'CA', 'WA', 'OR', 'CO', 'TX', 'IL', 'UT'].map(st => {
+                  const active = stateFilter === st;
+                  return (
+                    <TouchableOpacity
+                      key={st || 'ALL'}
+                      style={[styles.filterPill, active && styles.filterPillActive]}
+                      onPress={() => setStateFilter(st)}
+                    >
+                      <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                        {st || 'All Tracked States'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {civicLoading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="large" color="#4ade80" />
+                <Text style={styles.loadingText}>Loading legal &amp; contract records…</Text>
+              </View>
+            ) : civicError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>⚠️ {civicError}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadCivic}>
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : civicFeed ? (
+              <>
+                <View style={styles.kpiGrid}>
+                  <View style={styles.kpiCard}>
+                    <Text style={styles.kpiValue}>{civicFeed.summary.total_actions}</Text>
+                    <Text style={styles.kpiLabel}>Laws &amp; Enforcement Actions</Text>
+                  </View>
+                  <View style={styles.kpiCard}>
+                    <Text style={[styles.kpiValue, { color: '#fbbf24' }]}>
+                      {civicFeed.summary.terminated_or_switched}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Cancelled / Switched Cities</Text>
+                  </View>
+                  <View style={styles.kpiCard}>
+                    <Text style={[styles.kpiValue, { color: '#60a5fa' }]}>
+                      {civicFeed.summary.state_laws_count}
+                    </Text>
+                    <Text style={styles.kpiLabel}>Statewide Statutory Caps</Text>
+                  </View>
+                </View>
+
+                {civicFeed.contracts.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>MUNICIPAL CONTRACT SPEND &amp; TERMINATIONS</Text>
+                    {civicFeed.contracts.map(c => {
+                      const isStopped = c.status === 'terminated' || c.status === 'switched' || c.status === 'expired';
+                      return (
+                        <View key={c.contract_key} style={styles.agencyCard}>
+                          <View style={styles.cardTopRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.agencyName}>
+                                {c.city}, {c.state} · {c.vendor}
+                              </Text>
+                              <Text style={styles.agencyLoc}>
+                                {c.contract_value_usd ? `$${c.contract_value_usd.toLocaleString()} contract` : 'Baseline per-camera deployment'}
+                                {c.annual_cost_usd ? ` · ~$${c.annual_cost_usd.toLocaleString()}/yr` : ''}
+                                {c.camera_count ? ` · ${c.camera_count} cameras` : ''}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.auditBadge,
+                                isStopped ? styles.auditBadgeOk : styles.auditBadgeWarn,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.auditBadgeText,
+                                  isStopped ? { color: '#4ade80' } : { color: '#fbbf24' },
+                                ]}
+                              >
+                                {c.status.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.policyText}>{c.notes}</Text>
+                          <View style={styles.civicCardActions}>
+                            {c.agency_slug && (
+                              <TouchableOpacity
+                                style={styles.civicActionLink}
+                                onPress={() => setSelectedSlug(c.agency_slug!)}
+                              >
+                                <Text style={styles.civicActionLinkText}>Inspect Portal Dossier →</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={() => Linking.openURL(c.source_url)}>
+                              <Text style={styles.sourceCiteText}>Source: {c.source_label} ↗</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {civicFeed.actions.length > 0 && (
+                  <View style={{ gap: 10 }}>
+                    <Text style={styles.civicSectionTitle}>ENFORCEMENT ACTIONS, LAWSUITS &amp; STATE STATUTES</Text>
+                    {civicFeed.actions.map(act => {
+                      const isStatute = act.action_type === 'statute_cap';
+                      return (
+                        <View key={act.action_key} style={styles.agencyCard}>
+                          <View style={styles.cardTopRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.agencyName}>{act.headline}</Text>
+                              <Text style={styles.agencyLoc}>
+                                {act.jurisdiction_name} · {act.state} · {act.action_date}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.auditBadge,
+                                isStatute ? styles.statuteBadge : styles.alertBadge,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.auditBadgeText,
+                                  { color: isStatute ? '#93c5fd' : '#fca5a5' },
+                                ]}
+                              >
+                                {act.statute_or_vote || act.action_type.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.policyText}>{act.summary}</Text>
+                          <View style={styles.civicCardActions}>
+                            {act.agency_slug && (
+                              <TouchableOpacity
+                                style={styles.civicActionLink}
+                                onPress={() => setSelectedSlug(act.agency_slug!)}
+                              >
+                                <Text style={styles.civicActionLinkText}>Open Agency Dossier →</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={() => Linking.openURL(act.source_url)}>
+                              <Text style={styles.sourceCiteText}>Source: {act.source_label} ↗</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            ) : null}
+          </View>
+        ) : (
+          <>
         {/* National / Filtered KPI Strip */}
         {summary && (
           <View style={styles.kpiGrid}>
@@ -556,6 +779,8 @@ export function PortalsPage({ navigate }: Props) {
             )}
           </View>
         )}
+          </>
+        )}
 
         {/* Attribution Footer */}
         <View style={styles.footer}>
@@ -686,6 +911,35 @@ export function PortalsPage({ navigate }: Props) {
                     </Text>
                   </View>
                 </View>
+
+                {/* Civic Enforcement Actions & Municipal Contract */}
+                {detail.actions && detail.actions.length > 0 && (
+                  <View style={styles.policyBox}>
+                    <Text style={styles.sectionMiniTitle}>LEGAL ACTIONS &amp; STATE STATUTES</Text>
+                    <View style={{ gap: 8 }}>
+                      {detail.actions.map(act => (
+                        <View key={act.action_key} style={styles.dossierCivicItem}>
+                          <Text style={styles.dossierCivicTitle}>
+                            {act.statute_or_vote ? `[${act.statute_or_vote}] ` : ''}{act.headline}
+                          </Text>
+                          <Text style={styles.policyText}>{act.summary}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {detail.contract && (
+                  <View style={styles.policyBox}>
+                    <Text style={styles.sectionMiniTitle}>MUNICIPAL ALPR CONTRACT ({detail.contract.status.toUpperCase()})</Text>
+                    <Text style={styles.dossierCivicTitle}>
+                      {detail.contract.vendor}
+                      {detail.contract.contract_value_usd ? ` · $${detail.contract.contract_value_usd.toLocaleString()}` : ''}
+                      {detail.contract.annual_cost_usd ? ` (~$${detail.contract.annual_cost_usd.toLocaleString()}/yr)` : ''}
+                    </Text>
+                    <Text style={styles.policyText}>{detail.contract.notes}</Text>
+                  </View>
+                )}
 
                 {/* Prohibited Uses */}
                 {!!detail.prohibited_uses && (
@@ -1151,4 +1405,59 @@ const styles = StyleSheet.create({
   partnerChipText: { color: '#cbd5e1', fontSize: 11.5 },
   truncatedNote: { color: '#64748b', fontSize: 11.5, marginTop: 4, width: '100%' },
   dossierMeta: { color: '#64748b', fontSize: 11 },
+
+  modeTabRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  modeTabBtn: {
+    flex: 1,
+    minWidth: 180,
+    backgroundColor: '#13132a',
+    borderWidth: 1,
+    borderColor: '#25254a',
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  modeTabBtnActive: { backgroundColor: '#1e3a8a', borderColor: '#3b82f6' },
+  modeTabText: { color: '#94a3b8', fontSize: 13.5, fontWeight: '700' },
+  modeTabTextActive: { color: '#ffffff' },
+
+  civicSectionTitle: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 6,
+  },
+  civicCardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+  },
+  civicActionLink: {
+    backgroundColor: '#1e3a8a55',
+    borderWidth: 1,
+    borderColor: '#3b82f666',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  civicActionLinkText: { color: '#93c5fd', fontSize: 12, fontWeight: '700' },
+  sourceCiteText: { color: '#64748b', fontSize: 11.5 },
+  statuteBadge: { backgroundColor: '#172554', borderColor: '#3b82f666' },
+  alertBadge: { backgroundColor: '#450a0a', borderColor: '#ef444466' },
+  dossierCivicItem: {
+    backgroundColor: '#13132a',
+    borderRadius: 6,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#232346',
+  },
+  dossierCivicTitle: { color: '#f8fafc', fontSize: 12.5, fontWeight: '700', marginBottom: 3 },
 });

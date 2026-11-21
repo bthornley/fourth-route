@@ -13,11 +13,27 @@ const OPERATORS = [
   'Unknown',
 ];
 
+const PLACEMENT_TYPES = [
+  'City Pole',
+  'Retail Lot',
+  'HOA',
+  'Highway Gantry',
+];
+
+const DIRECTIONS = ['NB', 'SB', 'EB', 'WB'];
+
 interface Props {
   visible: boolean;
   lat: number;
   lon: number;
-  onSubmit: (lat: number, lon: number, operator?: string, notes?: string) => Promise<void>;
+  onSubmit: (
+    lat: number,
+    lon: number,
+    operator?: string,
+    notes?: string,
+    placementType?: string,
+    facingDirection?: string,
+  ) => Promise<void>;
   onClose: () => void;
 }
 
@@ -26,6 +42,8 @@ type Status = 'idle' | 'loading' | 'success' | 'error';
 export function CameraReportModal({ visible, lat, lon, onSubmit, onClose }: Props) {
   const [operator, setOperator] = useState('');
   const [customOperator, setCustomOperator] = useState('');
+  const [placementType, setPlacementType] = useState('');
+  const [facingDirection, setFacingDirection] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -35,6 +53,8 @@ export function CameraReportModal({ visible, lat, lon, onSubmit, onClose }: Prop
   const reset = () => {
     setOperator('');
     setCustomOperator('');
+    setPlacementType('');
+    setFacingDirection('');
     setNotes('');
     setStatus('idle');
     setErrorMsg('');
@@ -48,7 +68,14 @@ export function CameraReportModal({ visible, lat, lon, onSubmit, onClose }: Prop
   const handleSubmit = async () => {
     setStatus('loading');
     try {
-      await onSubmit(lat, lon, effectiveOperator || undefined, notes || undefined);
+      await onSubmit(
+        lat,
+        lon,
+        effectiveOperator || undefined,
+        notes || undefined,
+        placementType || undefined,
+        facingDirection || undefined,
+      );
       setStatus('success');
       setTimeout(() => {
         handleClose();
@@ -119,6 +146,38 @@ export function CameraReportModal({ visible, lat, lon, onSubmit, onClose }: Prop
                   autoFocus
                 />
               )}
+
+              {/* Placement Type */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Placement type (optional)</Text>
+              <View style={styles.chipRow}>
+                {PLACEMENT_TYPES.map(pt => (
+                  <TouchableOpacity
+                    key={pt}
+                    style={[styles.chip, placementType === pt && styles.chipActive]}
+                    onPress={() => setPlacementType(prev => prev === pt ? '' : pt)}
+                  >
+                    <Text style={[styles.chipText, placementType === pt && styles.chipTextActive]}>
+                      {pt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Facing Direction */}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Facing direction (optional)</Text>
+              <View style={styles.chipRow}>
+                {DIRECTIONS.map(dir => (
+                  <TouchableOpacity
+                    key={dir}
+                    style={[styles.chip, facingDirection === dir && styles.chipActive]}
+                    onPress={() => setFacingDirection(prev => prev === dir ? '' : dir)}
+                  >
+                    <Text style={[styles.chipText, facingDirection === dir && styles.chipTextActive]}>
+                      {dir}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               {/* Notes */}
               <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Notes (optional)</Text>

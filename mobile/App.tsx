@@ -232,11 +232,14 @@ export default function App() {
         visible={!!reportModal}
         lat={reportModal.lat}
         lon={reportModal.lon}
-        onSubmit={async (lat, lon, operator, notes) => {
+        onSubmit={async (lat, lon, operator, notes, placementType, facingDirection) => {
           const { reportCamera } = await import('./src/services/api');
-          await reportCamera(lat, lon, operator, notes);
+          await reportCamera(lat, lon, operator, notes, placementType, facingDirection);
           try {
-            track('camera_reported', { operator: operator || 'unknown' });
+            track('camera_reported', {
+              operator: operator || 'unknown',
+              placement_type: placementType || 'unspecified',
+            });
           } catch {}
         }}
         onClose={() => setReportModal(null)}

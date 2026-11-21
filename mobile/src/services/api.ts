@@ -28,9 +28,41 @@ export async function fetchCameraOverview(): Promise<CameraOverviewCluster[]> {
   }
 }
 
+export interface AgencyActionRecord {
+  action_key: string;
+  agency_slug?: string;
+  jurisdiction_name: string;
+  state: string;
+  action_type: string;
+  action_date: string;
+  headline: string;
+  summary: string;
+  statute_or_vote?: string;
+  retention_cap_days?: number;
+  source_label: string;
+  source_url: string;
+}
+
+export interface AgencyContractRecord {
+  contract_key: string;
+  agency_slug?: string;
+  city: string;
+  state: string;
+  vendor: string;
+  status: string;
+  contract_value_usd?: number;
+  annual_cost_usd?: number;
+  camera_count?: number;
+  end_or_vote_date?: string;
+  notes: string;
+  source_label: string;
+  source_url: string;
+}
+
 export interface CameraAgencyTransparency {
   camera_id: number;
   statefp?: string;
+  state?: string;
   place_name?: string;
   county_name?: string;
   jurisdiction_level?: string;
@@ -56,6 +88,8 @@ export interface CameraAgencyTransparency {
   portal_last_updated?: string;
   has_verified_portal: boolean;
   data_attribution: string;
+  actions?: AgencyActionRecord[];
+  contract?: AgencyContractRecord | null;
 }
 
 export async function fetchCameraAgency(cameraId: number): Promise<CameraAgencyTransparency | null> {
@@ -241,11 +275,19 @@ export async function fetchCamerasNearby(
 export async function reportCamera(
   lat: number, lon: number,
   operator?: string, notes?: string,
+  placementType?: string, facingDirection?: string,
 ): Promise<{ id: number; status: string }> {
   const res = await fetch(`${API_BASE}/cameras/report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat, lon, operator, notes }),
+    body: JSON.stringify({
+      lat,
+      lon,
+      operator,
+      notes,
+      placement_type: placementType,
+      facing_direction: facingDirection,
+    }),
   });
   if (!res.ok) throw new Error(`Report error: ${res.status}`);
   return res.json();
@@ -326,6 +368,35 @@ export interface AgencyPortalDetail extends AgencyPortalSummaryItem {
   organizations_shared_with?: string[];
   organizations_received_from?: string[];
   snapshot_date?: string;
+  actions?: AgencyActionRecord[];
+  contract?: AgencyContractRecord | null;
+}
+
+export interface CivicFeedSummary {
+  total_actions: number;
+  contracts_tracked: number;
+  terminated_or_switched: number;
+  state_laws_count: number;
+}
+
+export interface CivicFeedResponse {
+  summary: CivicFeedSummary;
+  actions: AgencyActionRecord[];
+  contracts: AgencyContractRecord[];
+}
+
+export async function fetchCivicFeed(params: {
+  state?: string;
+  actionType?: string;
+  status?: string;
+} = {}): Promise<CivicFeedResponse> {
+  const qs = new URLSearchParams();
+  if (params.state) qs.set('state', params.state);
+  if (params.actionType) qs.set('action_type', params.actionType);
+  if (params.status) qs.set('status', params.status);
+  const res = await fetch(`${API_BASE}/civic/feed?${qs.toString()}`);
+  if (!res.ok) throw new Error(`Civic feed fetch failed (${res.status})`);
+  return res.json();
 }
 
 export interface AgencyDirectorySummary {

@@ -111,6 +111,8 @@ class CameraReport(BaseModel):
     lon: float = Field(..., ge=-180, le=180)
     operator: str | None = None
     notes: str | None = None
+    placement_type: str | None = Field(default=None, max_length=40)
+    facing_direction: str | None = Field(default=None, max_length=16)
 
 class BBoxQuery(BaseModel):
     min_lat: float = Field(..., ge=-90, le=90)
@@ -323,11 +325,63 @@ def get_camera(camera_id: int, db=Depends(get_db)):
     return row
 
 
+STATE_FIPS_TO_ABBR = {
+    "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE",
+    "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA",
+    "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN",
+    "28": "MS", "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM",
+    "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+    "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA",
+    "54": "WV", "55": "WI", "56": "WY",
+}
+
+DIRECTION_DEGREES = {"NB": 0, "EB": 90, "SB": 180, "WB": 270}
+
+
+def _fetch_civic_context(cur, agency_slug: str | None, state_abbr: str | None):
+    """Fetch agency-specific enforcement/actions, statewide statutory caps, and municipal contract data."""
+    actions = []
+    contract = None
+    try:
+        if agency_slug or state_abbr:
+            cur.execute(
+                """
+                SELECT action_key, agency_slug, jurisdiction_name, state, action_type,
+                       action_date, headline, summary, statute_or_vote, retention_cap_days,
+                       source_label, source_url
+                FROM agency_actions
+                WHERE (%s IS NOT NULL AND agency_slug = %s)
+                   OR (%s IS NOT NULL AND agency_slug IS NULL AND state = %s)
+                ORDER BY (agency_slug IS NOT NULL) DESC, action_date DESC
+                LIMIT 6
+                """,
+                (agency_slug, agency_slug, state_abbr, state_abbr),
+            )
+            actions = cur.fetchall()
+        if agency_slug:
+            cur.execute(
+                """
+                SELECT contract_key, agency_slug, city, state, vendor, status,
+                       contract_value_usd, annual_cost_usd, camera_count, end_or_vote_date,
+                       notes, source_label, source_url
+                FROM agency_contracts
+                WHERE agency_slug = %s
+                LIMIT 1
+                """,
+                (agency_slug,),
+            )
+            contract = cur.fetchone()
+    except Exception as e:
+        log.warning(f"Civic context lookup skipped: {e}")
+    return actions, contract
+
+
 @app.get("/cameras/{camera_id}/agency", tags=["Cameras"])
 def get_camera_agency(camera_id: int, db=Depends(get_db)):
     """
     Return operating agency and verified transparency portal metadata
-    (retention, 30-day search volume, data sharing reach, prohibited uses).
+    (retention, 30-day search volume, data sharing reach, prohibited uses),
+    plus verified enforcement actions / statutory caps & contract data when available.
     Data attribution: Eyes on Flock (CC BY-SA 4.0).
     """
     with db.cursor() as cur:
@@ -367,9 +421,15 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
             (camera_id,),
         )
         row = cur.fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="Camera not found")
-    return row
+        if not row:
+            raise HTTPException(status_code=404, detail="Camera not found")
+        state_abbr = STATE_FIPS_TO_ABBR.get(str(row.get("statefp") or "").zfill(2)) if row.get("statefp") else None
+        actions, contract = _fetch_civic_context(cur, row.get("agency_slug"), state_abbr)
+    result = dict(row)
+    result["state"] = state_abbr
+    result["actions"] = actions
+    result["contract"] = contract
+    return result
 
 
 AGENCY_SORT_CLAUSES = {
@@ -465,25 +525,119 @@ def list_agencies(
 
 @app.get("/agencies/{slug}", tags=["Agencies"])
 def get_agency(slug: str, db=Depends(get_db)):
-    """Get full transparency profile and sharing network for a specific agency."""
+    """Get full transparency profile, sharing network, enforcement actions & contracts for a specific agency."""
     with db.cursor() as cur:
         cur.execute("SELECT * FROM agency_portals WHERE slug = %s", (slug,))
         row = cur.fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="Agency portal not found")
-    return row
+        if not row:
+            raise HTTPException(status_code=404, detail="Agency portal not found")
+        actions, contract = _fetch_civic_context(cur, row.get("slug"), row.get("state"))
+    result = dict(row)
+    result["actions"] = actions
+    result["contract"] = contract
+    return result
 
 
-def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: str, notes: str):
+@app.get("/civic/feed", tags=["Agencies"])
+def get_civic_feed(
+    state: str | None = Query(default=None, max_length=2),
+    action_type: str | None = Query(default=None, max_length=32),
+    status: str | None = Query(default=None, max_length=32),
+    db=Depends(get_db),
+):
+    """Returns verified legal/enforcement actions, statewide statutory caps, and municipal ALPR contract spend/terminations."""
+    act_where = "WHERE 1=1"
+    act_params = []
+    if state:
+        act_where += " AND state = %s"
+        act_params.append(state.upper())
+    if action_type:
+        act_where += " AND action_type = %s"
+        act_params.append(action_type)
+
+    con_where = "WHERE 1=1"
+    con_params = []
+    if state:
+        con_where += " AND state = %s"
+        con_params.append(state.upper())
+    if status:
+        con_where += " AND status = %s"
+        con_params.append(status)
+
+    with db.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT action_key, agency_slug, jurisdiction_name, state, action_type,
+                   action_date, headline, summary, statute_or_vote, retention_cap_days,
+                   source_label, source_url
+            FROM agency_actions
+            {act_where}
+            ORDER BY action_date DESC, id DESC
+            """,
+            act_params,
+        )
+        actions = cur.fetchall()
+
+        cur.execute(
+            f"""
+            SELECT contract_key, agency_slug, city, state, vendor, status,
+                   contract_value_usd, annual_cost_usd, camera_count, end_or_vote_date,
+                   notes, source_label, source_url
+            FROM agency_contracts
+            {con_where}
+            ORDER BY
+              CASE status WHEN 'terminated' THEN 1 WHEN 'switched' THEN 2 WHEN 'expired' THEN 3 ELSE 4 END,
+              contract_value_usd DESC NULLS LAST
+            """,
+            con_params,
+        )
+        contracts = cur.fetchall()
+
+    return {
+        "summary": {
+            "total_actions": len(actions),
+            "contracts_tracked": len(contracts),
+            "terminated_or_switched": sum(1 for c in contracts if c.get("status") in ("terminated", "switched", "expired")),
+            "state_laws_count": sum(1 for a in actions if a.get("action_type") == "statute_cap"),
+        },
+        "actions": actions,
+        "contracts": contracts,
+    }
+
+
+def _notify_new_camera_report(
+    report_id: int,
+    lat: float,
+    lon: float,
+    operator: str,
+    notes: str,
+    placement_type: str | None = None,
+    facing_direction: str | None = None,
+):
     """Best-effort notification via Webhook, Resend, or SMTP if configured."""
-    log.info(f"🚨 NEW CAMERA REPORTED [ID #{report_id}]: ({lat}, {lon}) operator={operator}")
-    
+    log.info(
+        f"🚨 NEW CAMERA REPORTED [ID #{report_id}]: ({lat}, {lon}) operator={operator} placement={placement_type} dir={facing_direction}"
+    )
+
+    extra = []
+    if placement_type:
+        extra.append(f"Placement: {placement_type}")
+    if facing_direction:
+        extra.append(f"Facing: {facing_direction}")
+    extra_line = " · ".join(extra)
+
     # 1. Discord/Slack/Generic Webhook
     webhook_url = os.getenv("ALERT_WEBHOOK_URL")
     if webhook_url:
         try:
             payload = {
-                "text": f"🚨 *New ALPR Camera Reported* (ID #{report_id})\n• Location: {lat:.5f}, {lon:.5f}\n• Operator: {operator or 'Unknown'}\n• Notes: {notes or 'None'}\n• Inspect: https://fourthroute.org?lat={lat}&lon={lon}"
+                "text": (
+                    f"🚨 *New ALPR Camera Reported* (ID #{report_id})\n"
+                    f"• Location: {lat:.5f}, {lon:.5f}\n"
+                    f"• Operator: {operator or 'Unknown'}\n"
+                    + (f"• {extra_line}\n" if extra_line else "")
+                    + f"• Notes: {notes or 'None'}\n• Inspect: https://fourthroute.org?lat={lat}&lon={lon}"
+                )
             }
             requests.post(webhook_url, json=payload, timeout=5)
         except Exception as e:
@@ -506,7 +660,8 @@ def _notify_new_camera_report(report_id: int, lat: float, lon: float, operator: 
                         f"ID: #{report_id}\n"
                         f"Coordinates: {lat}, {lon}\n"
                         f"Operator: {operator or 'Not specified'}\n"
-                        f"Notes: {notes or 'None'}\n\n"
+                        + (f"{extra_line}\n" if extra_line else "")
+                        + f"Notes: {notes or 'None'}\n\n"
                         f"Map link: https://fourthroute.org?lat={lat}&lon={lon}"
                     )
                 },
@@ -549,11 +704,18 @@ def report_camera(report: CameraReport, background_tasks: BackgroundTasks, db=De
     with db.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO camera_reports (lat, lon, operator, notes)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO camera_reports (lat, lon, operator, notes, placement_type, facing_direction)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (report.lat, report.lon, report.operator, report.notes),
+            (
+                report.lat,
+                report.lon,
+                report.operator,
+                report.notes,
+                report.placement_type,
+                report.facing_direction,
+            ),
         )
         new_id = cur.fetchone()["id"]
     db.commit()
@@ -561,7 +723,13 @@ def report_camera(report: CameraReport, background_tasks: BackgroundTasks, db=De
     # Dispatch email / webhook notifications asynchronously without blocking client response
     background_tasks.add_task(
         _notify_new_camera_report,
-        new_id, report.lat, report.lon, report.operator, report.notes
+        new_id,
+        report.lat,
+        report.lon,
+        report.operator,
+        report.notes,
+        report.placement_type,
+        report.facing_direction,
     )
 
     return {"id": new_id, "status": "pending", "message": "Report received, thank you!"}
@@ -575,7 +743,7 @@ def get_reports(
 ):
     """View crowdsourced camera reports for moderation."""
     query = """
-        SELECT id, lat, lon, operator, notes, status, created_at
+        SELECT id, lat, lon, operator, notes, placement_type, facing_direction, status, created_at
         FROM camera_reports
     """
     params = []
@@ -607,14 +775,23 @@ def approve_report(report_id: int, _auth: bool = Depends(verify_admin_token), db
         if not rep:
             raise HTTPException(status_code=404, detail="Report not found")
 
+        dir_deg = DIRECTION_DEGREES.get((rep.get("facing_direction") or "").upper())
         # Insert into cameras table
         cur.execute(
             """
-            INSERT INTO cameras (geom, source, operator, notes, confidence, verified_at)
-            VALUES (ST_SetSRID(ST_Point(%s, %s), 4326)::geography, 'user', %s, %s, 1.0, now())
+            INSERT INTO cameras (geom, source, operator, direction, notes, placement_type, facing_direction, confidence, verified_at)
+            VALUES (ST_SetSRID(ST_Point(%s, %s), 4326)::geography, 'user', %s, %s, %s, %s, %s, 1.0, now())
             RETURNING id
             """,
-            (rep["lon"], rep["lat"], rep.get("operator") or "User Reported", rep.get("notes")),
+            (
+                rep["lon"],
+                rep["lat"],
+                rep.get("operator") or "User Reported",
+                dir_deg,
+                rep.get("notes"),
+                rep.get("placement_type"),
+                rep.get("facing_direction"),
+            ),
         )
         cam_id = cur.fetchone()["id"]
 
