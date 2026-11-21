@@ -14,6 +14,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { track } from '@vercel/analytics';
 import { AboutPage } from './src/pages/AboutPage';
 import { LockdownPage } from './src/pages/LockdownPage';
+import { PortalsPage } from './src/pages/PortalsPage';
 import { PrivacyPolicy } from './src/pages/PrivacyPolicy';
 import { TermsOfService } from './src/pages/TermsOfService';
 import { ContactPage } from './src/pages/ContactPage';
@@ -114,6 +115,7 @@ export default function App() {
     return null;
   }
   if (path === '/about') return <><AboutPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
+  if (path === '/portals') return <><PortalsPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
   if (path === '/lockdown' || path === '/tools' || path === '/links') {
     return <><LockdownPage navigate={navigate} /><Analytics /><SpeedInsights /></>;
   }
@@ -208,6 +210,9 @@ export default function App() {
                 <Text style={styles.footerLink}>{label}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity onPress={() => navigate('/portals')}>
+              <Text style={[styles.footerLink, { color: '#60a5fa' }]}>📊 Portals</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigate('/lockdown')}>
               <Text style={[styles.footerLink, { color: '#4ade80' }]}>🛡️ Lockdown</Text>
             </TouchableOpacity>

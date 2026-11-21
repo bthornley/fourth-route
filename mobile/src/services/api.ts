@@ -285,3 +285,102 @@ export async function reverseGeocode(lat: number, lon: number): Promise<any | nu
   if (!res.ok) return null;
   return res.json();
 }
+
+// ── Transparency Portal Directory (/portals) ──
+
+export type AgencySortKey =
+  | 'cameras'
+  | 'retention'
+  | 'sharing'
+  | 'receiving'
+  | 'vehicles'
+  | 'searches'
+  | 'unaudited';
+
+export type AgencyAuditFilter = 'all' | 'unaudited' | 'audited';
+
+export interface AgencyPortalSummaryItem {
+  slug: string;
+  portal_url: string;
+  agency_name: string;
+  city?: string;
+  county?: string;
+  state: string;
+  agency_type?: string;
+  population?: number;
+  total_cameras?: number;
+  total_searches?: number;
+  data_retention?: number;
+  vehicles_captured?: number;
+  hotlist_hits?: number;
+  hotlist_hit_rate?: number;
+  organization_count?: number;
+  receiving_organization_count?: number;
+  prohibited_uses?: string;
+  public_search_audit?: boolean;
+  data_last_updated?: string;
+  attribution?: string;
+}
+
+export interface AgencyPortalDetail extends AgencyPortalSummaryItem {
+  organizations_shared_with?: string[];
+  organizations_received_from?: string[];
+  snapshot_date?: string;
+}
+
+export interface AgencyDirectorySummary {
+  total_matching: number;
+  states_count: number;
+  total_cameras: number;
+  unaudited_count: number;
+  audited_count: number;
+  max_retention_days: number;
+  max_sharing_partners: number;
+  max_vehicles_captured: number;
+}
+
+export interface AgencyStateCount {
+  state: string;
+  count: number;
+}
+
+export interface AgencyDirectoryResponse {
+  total: number;
+  showing?: number;
+  summary?: AgencyDirectorySummary;
+  states?: AgencyStateCount[];
+  agencies: AgencyPortalSummaryItem[];
+}
+
+export async function fetchAgencies(params: {
+  state?: string;
+  q?: string;
+  sort?: AgencySortKey;
+  audit?: AgencyAuditFilter;
+  limit?: number;
+  offset?: number;
+  includeStates?: boolean;
+} = {}): Promise<AgencyDirectoryResponse> {
+  const qs = new URLSearchParams();
+  if (params.state) qs.set('state', params.state);
+  if (params.q && params.q.trim()) qs.set('q', params.q.trim());
+  if (params.sort) qs.set('sort', params.sort);
+  if (params.audit && params.audit !== 'all') qs.set('audit', params.audit);
+  if (params.limit) qs.set('limit', String(params.limit));
+  if (params.offset) qs.set('offset', String(params.offset));
+  if (params.includeStates) qs.set('include_states', 'true');
+
+  const res = await fetch(`${API_BASE}/agencies?${qs.toString()}`);
+  if (!res.ok) throw new Error(`Agencies fetch failed (${res.status})`);
+  return res.json();
+}
+
+export async function fetchAgencyDetail(slug: string): Promise<AgencyPortalDetail | null> {
+  try {
+    const res = await fetch(`${API_BASE}/agencies/${encodeURIComponent(slug)}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}

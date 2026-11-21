@@ -563,6 +563,26 @@ export function MapView({ privacyLine, standardLine, cameras, onMapLongPress, fl
               container.appendChild(link);
             }
 
+            if (agency.agency_slug) {
+              const hubLink = document.createElement('a');
+              hubLink.href = `/portals?agency=${encodeURIComponent(agency.agency_slug)}`;
+              hubLink.target = '_blank';
+              hubLink.rel = 'noopener noreferrer';
+              hubLink.style.display = 'block';
+              hubLink.style.textAlign = 'center';
+              hubLink.style.background = '#0f172a';
+              hubLink.style.color = '#93c5fd';
+              hubLink.style.fontWeight = '600';
+              hubLink.style.fontSize = '10.5px';
+              hubLink.style.padding = '5px 8px';
+              hubLink.style.borderRadius = '5px';
+              hubLink.style.border = '1px solid #334155';
+              hubLink.style.textDecoration = 'none';
+              hubLink.style.marginBottom = '6px';
+              hubLink.textContent = '📊 Open Full Agency Dossier in Hub ↗';
+              container.appendChild(hubLink);
+            }
+
             // Contextual Commuter Lockdown / Broker Purge action link
             const lockdownLink = document.createElement('a');
             lockdownLink.href = '/lockdown';

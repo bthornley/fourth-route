@@ -15,6 +15,10 @@ export function AboutPage({ navigate }: Props) {
           <Text style={styles.navBackText}>← Map</Text>
         </TouchableOpacity>
         <View style={styles.navLinks}>
+          <TouchableOpacity onPress={() => navigate('/portals')}>
+            <Text style={[styles.navLink, { color: '#60a5fa', fontWeight: '700' }]}>📊 Portals</Text>
+          </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
           <TouchableOpacity onPress={() => navigate('/lockdown')}>
             <Text style={[styles.navLink, { color: '#4ade80', fontWeight: '700' }]}>🛡️ Lockdown</Text>
           </TouchableOpacity>

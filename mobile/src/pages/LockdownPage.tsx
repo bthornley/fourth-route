@@ -153,6 +153,10 @@ export function LockdownPage({ navigate }: Props) {
           <Text style={styles.navBackText}>← Live Map & Router</Text>
         </TouchableOpacity>
         <View style={styles.navLinks}>
+          <TouchableOpacity onPress={() => navigate('/portals')}>
+            <Text style={[styles.navLink, { color: '#60a5fa', fontWeight: '700' }]}>📊 Portals</Text>
+          </TouchableOpacity>
+          <Text style={styles.navDot}>·</Text>
           <TouchableOpacity onPress={() => navigate('/about')}>
             <Text style={styles.navLink}>About</Text>
           </TouchableOpacity>

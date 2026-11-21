@@ -372,42 +372,95 @@ def get_camera_agency(camera_id: int, db=Depends(get_db)):
     return row
 
 
+AGENCY_SORT_CLAUSES = {
+    "cameras": "total_cameras DESC NULLS LAST, organization_count DESC NULLS LAST, agency_name ASC",
+    "retention": "data_retention DESC NULLS LAST, organization_count DESC NULLS LAST, agency_name ASC",
+    "sharing": "organization_count DESC NULLS LAST, total_cameras DESC NULLS LAST, agency_name ASC",
+    "receiving": "receiving_organization_count DESC NULLS LAST, organization_count DESC NULLS LAST, agency_name ASC",
+    "vehicles": "vehicles_captured DESC NULLS LAST, total_cameras DESC NULLS LAST, agency_name ASC",
+    "searches": "total_searches DESC NULLS LAST, total_cameras DESC NULLS LAST, agency_name ASC",
+    "unaudited": "(public_search_audit IS FALSE) DESC, organization_count DESC NULLS LAST, data_retention DESC NULLS LAST, agency_name ASC",
+}
+
+
 @app.get("/agencies", tags=["Agencies"])
 def list_agencies(
     state: str | None = Query(default=None, max_length=2, description="Filter by state (e.g. CA, TX, WA)"),
-    q: str | None = Query(default=None, max_length=100, description="Search by agency name or city"),
-    limit: int = Query(default=50, le=500),
+    q: str | None = Query(default=None, max_length=100, description="Search by agency name, city, or county"),
+    sort: str = Query(default="cameras", description="Sort metric: cameras, retention, sharing, receiving, vehicles, searches, unaudited"),
+    audit: str = Query(default="all", description="Filter by search audit publication: all, unaudited, audited"),
+    limit: int = Query(default=100, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    include_states: bool = Query(default=False),
     db=Depends(get_db),
 ):
     """
-    List law enforcement agencies with verified Flock Safety transparency portals.
+    Searchable, sortable leaderboard of law enforcement agencies with verified Flock Safety transparency portals.
     Attribution: Eyes on Flock (CC BY-SA 4.0).
     """
-    query = """
+    where_sql = "WHERE 1=1"
+    params = []
+    if state:
+        where_sql += " AND state = %s"
+        params.append(state.upper())
+    if q:
+        where_sql += " AND (agency_name ILIKE %s OR city ILIKE %s OR county ILIKE %s OR slug ILIKE %s)"
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q, like_q, like_q])
+    if audit == "unaudited":
+        where_sql += " AND public_search_audit IS FALSE"
+    elif audit == "audited":
+        where_sql += " AND public_search_audit IS TRUE"
+
+    order_sql = AGENCY_SORT_CLAUSES.get(sort, AGENCY_SORT_CLAUSES["cameras"])
+    query = f"""
         SELECT
             slug, portal_url, agency_name, city, county, state, agency_type,
             population, total_cameras, total_searches, data_retention,
             vehicles_captured, hotlist_hits, hotlist_hit_rate,
-            organization_count, prohibited_uses, data_last_updated,
+            organization_count, receiving_organization_count,
+            prohibited_uses, public_search_audit, data_last_updated,
             attribution
         FROM agency_portals
-        WHERE 1=1
+        {where_sql}
+        ORDER BY {order_sql}
+        LIMIT %s OFFSET %s
     """
-    params = []
-    if state:
-        query += " AND state = %s"
-        params.append(state.upper())
-    if q:
-        query += " AND (agency_name ILIKE %s OR city ILIKE %s OR county ILIKE %s)"
-        like_q = f"%{q}%"
-        params.extend([like_q, like_q, like_q])
-    query += " ORDER BY total_cameras DESC NULLS LAST, agency_name ASC LIMIT %s"
-    params.append(limit)
+    summary_sql = f"""
+        SELECT
+            COUNT(*)::int AS total_matching,
+            COUNT(DISTINCT state)::int AS states_count,
+            COALESCE(SUM(total_cameras), 0)::bigint AS total_cameras,
+            COUNT(*) FILTER (WHERE public_search_audit IS FALSE)::int AS unaudited_count,
+            COUNT(*) FILTER (WHERE public_search_audit IS TRUE)::int AS audited_count,
+            COALESCE(MAX(data_retention), 0)::int AS max_retention_days,
+            COALESCE(MAX(organization_count), 0)::int AS max_sharing_partners,
+            COALESCE(MAX(vehicles_captured), 0)::bigint AS max_vehicles_captured
+        FROM agency_portals
+        {where_sql}
+    """
 
     with db.cursor() as cur:
-        cur.execute(query, params)
+        cur.execute(summary_sql, params)
+        summary = cur.fetchone()
+        cur.execute(query, [*params, limit, offset])
         rows = cur.fetchall()
-    return {"total": len(rows), "agencies": rows}
+        states_list = None
+        if include_states:
+            cur.execute(
+                "SELECT state, COUNT(*)::int AS count FROM agency_portals GROUP BY state ORDER BY state ASC"
+            )
+            states_list = cur.fetchall()
+
+    resp = {
+        "total": summary["total_matching"] if summary else len(rows),
+        "showing": len(rows),
+        "summary": summary,
+        "agencies": rows,
+    }
+    if states_list is not None:
+        resp["states"] = states_list
+    return resp
 
 
 @app.get("/agencies/{slug}", tags=["Agencies"])
